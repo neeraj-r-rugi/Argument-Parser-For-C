@@ -167,7 +167,7 @@ char ** arg_get_multiple_string(arg_table * table, const char * name, int * out_
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
-
+#define GNU_SOURCE // for strdup
 
 void print_help(arg_table *table, const char *program_name) {
     printf("\nUsage: %s [options]\n\n", program_name);
@@ -235,6 +235,10 @@ arg_table *add_argument(arg_table *table, const char *verbose_name, const char *
                         arg_type type, const char *help_text) {
     if (table == NULL)
         argument_parser_panic("Argument table is not initialized.");
+    
+    if(strcmp(verbose_name, "--help") == 0 || strcmp(verbose_name, "-h") == 0) {
+        argument_parser_panic("Cannot use reserved argument name '%s'.", verbose_name);
+    }
 
     int new_count = table->total_arguments + 1;
 
@@ -381,7 +385,7 @@ arg_table *parse_all_arguments(arg_table *table, int argc, char **argv) {
 
         if (!matched) {
             print_help(table, argv[0]);
-            argument_parser_panic("Unknown argument: %s", current_word);
+            argument_parser_error("Unknown argument: %s", current_word);
         }
     }
 
@@ -389,7 +393,7 @@ arg_table *parse_all_arguments(arg_table *table, int argc, char **argv) {
         arg_opt *arg = table->arguments[i];
         if ((arg->argument_type & ARGUMENT_TYPE_REQUIRED) && !arg->is_present) {
             print_help(table, argv[0]);
-            argument_parser_panic("Required argument '%s' was not provided.", arg->argument_name_long);
+            argument_parser_error("Required argument '%s' was not provided.", arg->argument_name_long);
         }
     }
 
