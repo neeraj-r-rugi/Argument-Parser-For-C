@@ -485,7 +485,7 @@ arg_opt *arg_get(arg_table *table, const char *name) {
     for (int i = 0; i < table->total_arguments; i++) {
         arg_opt *arg = table->arguments[i];
         if (strcmp(arg->argument_name_long, name) == 0 ||
-            strcmp(arg->argument_name_short, name) == 0)
+            (strcmp(arg->argument_name_short, name) == 0 && strcmp(arg->argument_name_short, "") != 0))
             return arg;
     }
 
