@@ -1,5 +1,32 @@
+/*
+    Name: Argument Parser for C
+    Author: Neeraj R Rugi
+    Description: A simple argument parser for C that supports string, integer, float, and boolean arguments, as well as required and multiple arguments. It provides a simple API for defining arguments.
+    LICENSE: GNU General Public License v3.0 (GPL-3.0)
+    Copyright: (c) 2026 Neeraj R Rugi. All rights reserved.
+
+*/
+
 #ifndef ARGUMENT_PARSER
 #define ARGUMENT_PARSER
+
+/*
+    * A simple argument parser for C that supports string, integer, float, and boolean arguments, as well as required and multiple arguments.
+    * It provides a simple API for defining arguments, parsing command-line input, and retrieving argument values.
+*/
+/*
+    * TYPE: Enumeration (enum)
+    * FIELDS:
+    * - ARGUMENT_TYPE_STRING: Represents a string argument type.
+    * - ARGUMENT_TYPE_INTEGER: Represents an integer argument type.
+    * - ARGUMENT_TYPE_FLOAT: Represents a float argument type.
+    * - ARGUMENT_TYPE_BOOLEAN: Represents a boolean argument type.
+    * - ARGUMENT_TYPE_REQUIRED: Modifier indicating that the argument is required.
+    * - ARGUMENT_TYPE_MULTIPLE: Modifier indicating that the argument can accept multiple values.
+    * DESCRIPTION:
+    * This enumeration defines the various types and modifiers that can be associated with command-line arguments in
+    * the argument parser.
+*/
 typedef enum ARGUMENT_TYPE{
     ARGUMENT_TYPE_STRING = 1 << 0,
     ARGUMENT_TYPE_INTEGER = 1 << 1,
@@ -9,6 +36,14 @@ typedef enum ARGUMENT_TYPE{
     ARGUMENT_TYPE_MULTIPLE = 1 << 5
 } arg_type;
 
+
+/*
+    * STRUCTURES:
+    * - ARGUMENT_OPTIONS: Represents the details of a single command-line argument, including its name, type, value, and help text.
+    * - ARGUMENT_TABLE: Represents the collection of all defined arguments, along with counts of total, user-provided, and required arguments.
+    * DESCRIPTION:
+    * These structures are used to store information about the defined command-line arguments and their values after parsing. The ARGUMENT_OPTIONS structure holds details for each individual argument, while the ARGUMENT_TABLE structure manages the overall collection of arguments.
+*/
 typedef struct ARGUMENT_OPTIONS{
     char * argument_name_long;
     char * argument_name_short;
@@ -67,7 +102,6 @@ arg_table * init_argument_parser();
 arg_table * add_argument(arg_table * table, const char * long_name, const char * short_name, arg_type type, const char * help_text);
 
 /*
-    * CAUTION: This function will terminate the program. Use it to display help information to the user.
     * Input: Pointer to the argument table and the name of the program (for usage display)
     * Output: None (the function will print the help message and terminate the program)
     * Description:
@@ -307,7 +341,7 @@ arg_table *parse_all_arguments(arg_table *table, int argc, char **argv) {
             matched = 1;
             if(arg->is_present) {
                 print_help(table, argv[0]);
-                argument_parser_error("Argument '%s' is provided multiple times.", current_word);
+                argument_parser_error("Argument '%s' is provided multiple times.", arg->argument_name_long);
             }
             arg->is_present = 1;
 
