@@ -19,7 +19,7 @@ echo "-----------------------------"
 echo "-----------------------------"
 ./test -H "localhost" -t tag1 tag2 tag3
 echo "-----------------------------"
-./test -H "localhost" -t tag9 tag11 tag13 --timeout 3.5 --verbose -p 6007
+./test -H "localhost" -t "tag 9" "tag 11" "tag 13" --timeout 3.5 --verbose -p 6007
 echo "-----------------------------"
 ./test --help
 fi

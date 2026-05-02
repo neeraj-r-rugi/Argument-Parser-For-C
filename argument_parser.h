@@ -293,6 +293,9 @@ arg_table *add_argument(arg_table *table, const char *verbose_name, const char *
     if(short_name == NULL){
         short_name = "";
     }
+    if(help_text == NULL){
+        help_text = "<Help text not provided>";
+    }
     for (int i = 0; i < table->total_arguments; i++) {
         arg_opt *arg = table->arguments[i];
         if (strcmp(arg->argument_name_long, verbose_name) == 0 ||
@@ -615,6 +618,7 @@ char **arg_get_multiple_string(arg_table *table, const char *name, int *out_coun
 
     return (char **)arg->multiple_argument_values;
 }
+
 
 void cast_to_int(const char *val, int *out) {
     char *end;
