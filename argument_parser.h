@@ -290,6 +290,15 @@ arg_table *add_argument(arg_table *table, const char *verbose_name, const char *
     if(strcmp(verbose_name, "--help") == 0 || strcmp(verbose_name, "-h") == 0) {
         argument_parser_panic("Cannot use reserved argument name '%s'.", verbose_name);
     }
+    if(short_name == NULL){
+        short_name = "";
+    }
+    for (int i = 0; i < table->total_arguments; i++) {
+        arg_opt *arg = table->arguments[i];
+        if (strcmp(arg->argument_name_long, verbose_name) == 0 ||
+            strcmp(arg->argument_name_short, short_name) == 0)
+            argument_parser_panic("Argument name '%s' or short name '%s' is already in use.", verbose_name, short_name);
+    }
 
     int new_count = table->total_arguments + 1;
 
@@ -628,11 +637,10 @@ void cast_to_int(const char *val, int *out) {
 }
 
 
-
 void cast_to_float(const char *val, float *out) {
     char *end;
     errno = 0;
-    double temp = strtod(val, &end);
+    float temp = strtod(val, &end);
     // No conversion performed
     if (end == val)
         argument_parser_error("Invalid float value: '%s'", val);

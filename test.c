@@ -8,7 +8,7 @@ int main(int argc, char **argv) {
     add_argument(table, "--port",    "-p", ARGUMENT_TYPE_INTEGER,                          "Port number (default 8080)");
     add_argument(table, "--verbose", "-v", ARGUMENT_TYPE_BOOLEAN,                          "Enable verbose output");
     add_argument(table, "--tags",    "-t", ARGUMENT_TYPE_STRING | ARGUMENT_TYPE_MULTIPLE,  "One or more tags");
-    add_argument(table, "--timeout", "-T", ARGUMENT_TYPE_FLOAT,                            "Timeout in seconds");
+    add_argument(table, "--timeout", NULL, ARGUMENT_TYPE_FLOAT,                            "Timeout in seconds");
 
     parse_all_arguments(table, argc, argv);
 

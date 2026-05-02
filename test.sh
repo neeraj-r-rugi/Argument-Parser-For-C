@@ -15,11 +15,11 @@ echo "-----------------------------"
 echo "-----------------------------"
 ./test -H "localhost" -p 5000
 echo "-----------------------------"
-./test -H "localhost" -T 2.5
+./test -H "localhost" --timeout 2.5
 echo "-----------------------------"
 ./test -H "localhost" -t tag1 tag2 tag3
 echo "-----------------------------"
-./test -H "localhost" -t tag9 tag11 tag13 -T 3.5 --verbose -p 0007
+./test -H "localhost" -t tag9 tag11 tag13 --timeout 3.5 --verbose -p 6007
 echo "-----------------------------"
 ./test --help
 fi
@@ -29,7 +29,7 @@ if [ "$fail" == "--fail" ]; then
     echo "-----------------------------"
     ./test -H "localhost" -p not_a_number
     echo "-----------------------------"
-    ./test -H "localhost" -T not_a_float
+    ./test -H "localhost" --timeout not_a_float
     echo "-----------------------------"
     ./test -H "localhost" -t
     echo "-----------------------------"
