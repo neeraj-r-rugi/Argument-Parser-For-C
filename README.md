@@ -1,4 +1,4 @@
-# argument_parser.h
+# Command Line Argument Parser for C
 
 A single-header, zero-dependency C argument parser. Drop one file into your project, define `LOAD_ARGUMENT_PARSER` in exactly one translation unit, and you have a fully functional `--flag value` CLI parser with typed getters, required-argument enforcement, multi-value support, and auto-generated help.
 
@@ -83,6 +83,9 @@ int main(int argc, char **argv) {
     char **tags = NULL;
     if (arg_get(table, "--tags")->is_present)
         tags = arg_get_multiple_string(table, "--tags", &tag_count);
+        for(int i = 0; i < tag_count; i++) {
+            printf("Tag %d: %s\n", i + 1, tags[i]);
+        }
 
     printf("Host: %s  Port: %d  Verbose: %d\n", host, port, verbose);
     return 0;
