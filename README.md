@@ -1,58 +1,28 @@
 # Command Line Argument Parser for C
 
-A single-header, zero-dependency C argument parser. Drop one file into your project, define `LOAD_ARGUMENT_PARSER` in exactly one translation unit, and you have a fully functional `--flag value` CLI parser with typed getters, required-argument enforcement, multi-value support, and auto-generated help.
+A lightweight, single-header C argument parser. Drop one file into your project and get typed flags, multi-value support, required-argument enforcement, and auto-generated help with zero dependencies.
 
----
-
-## Table of Contents
-
-- [Integration](#integration)
-- [Quick Start](#quick-start)
-- [How It Works](#how-it-works)
-- [Argument Types](#argument-types)
-- [Type Modifiers](#type-modifiers)
-- [Valid Type Combinations](#valid-type-combinations)
-- [API Reference](#api-reference)
-  - [Lifecycle](#lifecycle)
-  - [Single-Value Getters](#single-value-getters)
-  - [Multi-Value Getters](#multi-value-getters)
-  - [Error Helpers](#error-helpers)
-- [Flag Syntax Rules](#flag-syntax-rules)
-- [Help System](#help-system)
-- [Error Behaviour](#error-behaviour)
-- [Limitations](#limitations)
-- [Memory Notes](#memory-notes)
+**Author:** Neeraj R Rugi  
+**License:** GPL-3.0
 
 ---
 
 ## Integration
 
-The header is split into two regions separated by a preprocessor guard:
-
-```
-#ifndef ARGUMENT_PARSER   ← declarations (always included)
-...
-#endif
-
-#ifdef LOAD_ARGUMENT_PARSER   ← definitions (included once)
-...
-#endif
-```
-
-**In exactly one `.c` file** (your `main.c` is the natural choice):
+In **exactly one** `.c` file (typically `main.c`):
 
 ```c
 #define LOAD_ARGUMENT_PARSER
 #include "argument_parser.h"
 ```
 
-Every other file that only needs the types or function prototypes:
+In every other file that only needs the types or function signatures:
 
 ```c
 #include "argument_parser.h"
 ```
 
-Defining `LOAD_ARGUMENT_PARSER` in more than one translation unit will cause linker errors (duplicate symbol definitions). This is intentional — it is the standard single-header pattern.
+> Defining `LOAD_ARGUMENT_PARSER` in more than one translation unit will cause linker errors.
 
 ---
 
@@ -69,6 +39,8 @@ int main(int argc, char **argv) {
     add_argument(table, "--port",    "-p", ARGUMENT_TYPE_INTEGER,                          "Port number (default 8080)");
     add_argument(table, "--verbose", "-v", ARGUMENT_TYPE_BOOLEAN,                          "Enable verbose output");
     add_argument(table, "--tags",    "-t", ARGUMENT_TYPE_STRING | ARGUMENT_TYPE_MULTIPLE,  "One or more tags");
+    add_argument(table, "--timeout", NULL, ARGUMENT_TYPE_FLOAT,                            "Timeout in seconds");
+    add_argument(table, "--val", NULL, ARGUMENT_TYPE_INTEGER | ARGUMENT_TYPE_MULTIPLE, "One or more integer values");
 
     parse_all_arguments(table, argc, argv);
 
@@ -87,301 +59,223 @@ int main(int argc, char **argv) {
             printf("Tag %d: %s\n", i + 1, tags[i]);
         }
 
-    printf("Host: %s  Port: %d  Verbose: %d\n", host, port, verbose);
+    if (arg_get(table, "--val")->is_present) {
+        int val_count;
+        int *vals = arg_get_multiple_int(table, "--val", &val_count);
+        for(int i = 0; i < val_count; i++) {
+            printf("Val %d: %d\n", i + 1, vals[i]);
+            free(vals); // Free the allocated array for integer values
+        }
+    }
+
+    float timeout = 0.0f;
+    if (arg_get(table, "--timeout")->is_present)
+        timeout = arg_get_float(table, "--timeout");
+    printf("Host: %s  Port: %d  Verbose: %d Timeout: %.2f\n", host, port, verbose, timeout);
+    free_argument_table(table);
+    table = NULL; // prevent dangling pointer
     return 0;
 }
 ```
-
-Example invocations:
-
-```
-./app --host localhost --port 9000 --verbose --tags alpha beta gamma
-./app -H localhost -p 9000 -v -t alpha beta
-./app --help
-```
-
----
-
-## How It Works
-
-### Initialisation
-
-`init_argument_parser()` heap-allocates an `arg_table` and zeroes all fields. The `arguments` pointer starts as `NULL`; capacity grows on demand via `realloc` each time `add_argument` is called.
-
-### Argument Registration
-
-Each call to `add_argument` does:
-
-1. `realloc` the `arg_opt **arguments` array to one larger.
-2. `malloc` a new `arg_opt`, `strdup` the long name, short name, and help text into it.
-3. Set `is_present = 0`, `argument_value = NULL`, `argument_count = 0`.
-4. If `ARGUMENT_TYPE_REQUIRED` is set, increment `table->required_arguments`.
-
-### Parsing
-
-`parse_all_arguments` does a **linear scan** over `argv[1..argc-1]`:
-
-1. **Help pre-scan** — iterates the full `argv` first. If `--help` or `-h` appears *anywhere*, it calls `print_help` and exits immediately, before any other parsing.
-2. **Main loop** — for each token:
-   - Tries to match the token against every registered argument's long name or short name (exact string match, `strcmp`).
-   - If no match is found, calls `print_help` then `argument_parser_error` → program exits.
-   - If already seen (`is_present == 1`), calls `argument_parser_error` → duplicate flag → program exits.
-3. **Value consumption** (per matched type):
-   - `BOOLEAN` — no value token consumed; sets `argument_value` to a heap `int` of `1`.
-   - `MULTIPLE` — greedily consumes all subsequent tokens that do **not** look like a flag (see [Flag Syntax Rules](#flag-syntax-rules)). Requires at least one value.
-   - Everything else — consumes exactly the next token. Errors if it is missing or looks like a flag.
-4. **Required check** — after the loop, iterates all registered arguments; if any `REQUIRED` argument has `is_present == 0`, calls `print_help` then `argument_parser_panic` → program exits.
-
-### Type Conversion
-
-| Declared type | Conversion used |
-|---|---|
-| `STRING` | `strdup(val)` — raw copy, no validation |
-| `INTEGER` | `atoi(val)` — no error detection |
-| `FLOAT` | `atof(val)` — no error detection |
-| `BOOLEAN` | flag presence only; no value token |
 
 ---
 
 ## Argument Types
 
-These are bit-flags defined in `enum ARGUMENT_TYPE` and combined with `|`.
+Combine a **base type** with optional **modifiers** using bitwise OR.
 
-| Constant | Bit | Meaning |
+### Base Types
+
+| Type | Flag | Accepted values |
 |---|---|---|
-| `ARGUMENT_TYPE_STRING` | `1 << 0` | Value is a `char *` string |
-| `ARGUMENT_TYPE_INTEGER` | `1 << 1` | Value is parsed as `int` via `atoi` |
-| `ARGUMENT_TYPE_FLOAT` | `1 << 2` | Value is parsed as `float` via `atof` |
-| `ARGUMENT_TYPE_BOOLEAN` | `1 << 3` | Flag with no value token; presence = true |
-| `ARGUMENT_TYPE_REQUIRED` | `1 << 4` | Modifier: argument must be present or the parser aborts |
-| `ARGUMENT_TYPE_MULTIPLE` | `1 << 5` | Modifier: argument accepts one or more space-separated values |
+| `ARGUMENT_TYPE_STRING` | `--flag value` | Any string |
+| `ARGUMENT_TYPE_INTEGER` | `--flag 42` | Signed integer within `INT_MIN`/`INT_MAX` |
+| `ARGUMENT_TYPE_FLOAT` | `--flag 3.14` | Floating-point number |
+| `ARGUMENT_TYPE_BOOLEAN` | `--flag` | No value — presence means `true` |
 
----
+### Modifiers
 
-## Type Modifiers
+| Modifier | Effect |
+|---|---|
+| `ARGUMENT_TYPE_REQUIRED` | Parser exits with an error if the flag is absent |
+| `ARGUMENT_TYPE_MULTIPLE` | Flag accepts one or more space-separated values |
 
-`ARGUMENT_TYPE_REQUIRED` and `ARGUMENT_TYPE_MULTIPLE` are **modifiers**, not base types. They must always be combined with exactly one base type using bitwise OR.
+### Examples
 
 ```c
-// ✔ correct
-ARGUMENT_TYPE_INTEGER | ARGUMENT_TYPE_REQUIRED
-ARGUMENT_TYPE_STRING  | ARGUMENT_TYPE_MULTIPLE
-ARGUMENT_TYPE_FLOAT   | ARGUMENT_TYPE_MULTIPLE | ARGUMENT_TYPE_REQUIRED
-
-// ✘ wrong — no base type
-ARGUMENT_TYPE_REQUIRED
-ARGUMENT_TYPE_MULTIPLE
+ARGUMENT_TYPE_STRING  | ARGUMENT_TYPE_REQUIRED                          // required string
+ARGUMENT_TYPE_INTEGER | ARGUMENT_TYPE_MULTIPLE                           // one or more ints
+ARGUMENT_TYPE_FLOAT   | ARGUMENT_TYPE_MULTIPLE | ARGUMENT_TYPE_REQUIRED  // required multi-float
+ARGUMENT_TYPE_BOOLEAN                                                     // optional flag (no value)
 ```
-
-Combining `ARGUMENT_TYPE_BOOLEAN` with `ARGUMENT_TYPE_MULTIPLE` is structurally possible but semantically undefined — the boolean branch is checked first and no value tokens are consumed, so the MULTIPLE machinery never runs.
 
 ---
 
-## Valid Type Combinations
+## Flag Syntax
 
-| Combination | Getter |
+| Style | Supported |
 |---|---|
-| `ARGUMENT_TYPE_STRING` | `arg_get_string` |
-| `ARGUMENT_TYPE_INTEGER` | `arg_get_int` |
-| `ARGUMENT_TYPE_FLOAT` | `arg_get_float` |
-| `ARGUMENT_TYPE_BOOLEAN` | `arg_get_bool` |
-| `ARGUMENT_TYPE_STRING \| ARGUMENT_TYPE_REQUIRED` | `arg_get_string` |
-| `ARGUMENT_TYPE_INTEGER \| ARGUMENT_TYPE_REQUIRED` | `arg_get_int` |
-| `ARGUMENT_TYPE_FLOAT \| ARGUMENT_TYPE_REQUIRED` | `arg_get_float` |
-| `ARGUMENT_TYPE_BOOLEAN \| ARGUMENT_TYPE_REQUIRED` | `arg_get_bool` |
-| `ARGUMENT_TYPE_STRING \| ARGUMENT_TYPE_MULTIPLE` | `arg_get_multiple_string` |
-| `ARGUMENT_TYPE_INTEGER \| ARGUMENT_TYPE_MULTIPLE` | `arg_get_multiple_int` |
-| `ARGUMENT_TYPE_FLOAT \| ARGUMENT_TYPE_MULTIPLE` | `arg_get_multiple_float` |
-| Any of the above `\| ARGUMENT_TYPE_REQUIRED` | same getter |
+| `--flag value` | ✔ |
+| `-f value` | ✔ |
+| `--flag=value` | ✘ |
+| `-fvalue` | ✘ |
+| Combined short flags (`-vxz`) | ✘ |
+
+Flags must always include the dash(es) in the name you register:
+
+```c
+add_argument(table, "--output", "-o", ...);   // correct
+add_argument(table, "output",   "o",  ...);   // will never match argv
+```
+
+Negative numbers are treated as values, not flags. `--val -3 -7` works correctly for a MULTIPLE INTEGER argument.
 
 ---
 
 ## API Reference
 
-### Lifecycle
+### Setup
 
-#### `arg_table * init_argument_parser()`
-Allocates and returns a zeroed argument table. Must be called before any other function. Panics and exits on `malloc` failure.
+```c
+arg_table *init_argument_parser();
+```
+Allocates and returns an empty argument table. Call this before anything else.
 
-#### `arg_table * add_argument(arg_table *table, const char *long_name, const char *short_name, arg_type type, const char *help_text)`
-Registers a new argument. Both names are `strdup`'d internally. Returns the same `table` pointer for optional chaining. Panics on `realloc`/`malloc` failure.
+```c
+arg_table *add_argument(arg_table *table,
+                        const char *long_name,
+                        const char *short_name,
+                        arg_type    type,
+                        const char *help_text);
+```
+Registers a flag. Pass `NULL` for `short_name` if no short form is needed.
 
-- `long_name` — full flag string, e.g. `"--output"`. Must include the dashes.
-- `short_name` — abbreviated flag, e.g. `"-o"`. Must include the dash.
-- `type` — bitwise OR of base type + optional modifiers.
-- `help_text` — displayed in `--help` output.
+```c
+arg_table *parse_all_arguments(arg_table *table, int argc, char **argv);
+```
+Parses the command line. Handles `--help`/`-h`, unknown flags, duplicates, missing values, type errors, and required-argument checks. Exits the program on any error.
 
-#### `arg_table * parse_all_arguments(arg_table *table, int argc, char **argv)`
-Parses the command line. Handles `--help` / `-h`, unknown flags, duplicates, missing values, and required-argument enforcement. Calls `exit` on any error. Returns `table` on success.
+```c
+void free_argument_table(arg_table *table);
+```
+Frees all memory allocated by the parser. Call when done.
 
 ---
 
-### Single-Value Getters
+### Retrieving Values
 
-All single-value getters panic and exit if:
-- The argument name is not found in the table.
-- The argument's declared type does not match the getter.
-- The argument was not present on the command line (except `arg_get_bool`, which returns `0` instead).
-
-#### `char * arg_get_string(arg_table *table, const char *name)`
-Returns the raw string value. The pointer is owned by the parser; do not `free` it.
-
-#### `int arg_get_int(arg_table *table, const char *name)`
-Returns the integer value. Parsed at call time of `parse_all_arguments` via `atoi`.
-
-#### `float arg_get_float(arg_table *table, const char *name)`
-Returns the float value. Parsed via `atof`.
-
-#### `int arg_get_bool(arg_table *table, const char *name)`
-Returns `1` if the flag was present, `0` if absent. The only getter that does **not** panic on absence.
-
-#### `arg_opt * arg_get(arg_table *table, const char *name)`
-Low-level lookup; returns the raw `arg_opt *`. Useful to check `->is_present` before calling a typed getter on an optional argument, avoiding a panic.
+#### Check presence first for optional arguments
 
 ```c
-// Safe pattern for optional integer
+arg_opt *arg_get(arg_table *table, const char *name);
+```
+
+Use `->is_present` before calling a typed getter on an optional argument to avoid a panic:
+
+```c
+int port = 8080;
 if (arg_get(table, "--port")->is_present)
     port = arg_get_int(table, "--port");
 ```
 
----
+#### Single-value getters
 
-### Multi-Value Getters
+```c
+char  *arg_get_string(arg_table *table, const char *name);
+int    arg_get_int   (arg_table *table, const char *name);
+float  arg_get_float (arg_table *table, const char *name);
+int    arg_get_bool  (arg_table *table, const char *name);  // returns 0 if absent — no panic
+```
 
-All multi-value getters panic and exit if the argument is not declared with `ARGUMENT_TYPE_MULTIPLE`, was not present, or has no values. They also write the value count to `*out_count` if non-NULL.
+#### Multi-value getters
 
-#### `void ** arg_get_multiple(arg_table *table, const char *name, int *out_count)`
-Returns the raw `void **` array. You are responsible for casting each element to the correct pointer type.
+All three write the element count to `*out_count`.
 
-#### `int * arg_get_multiple_int(arg_table *table, const char *name, int *out_count)`
-Returns a **newly `malloc`'d** `int[]` flattened from the internal `void **` store. **You must `free` this array.** The internal `void *` pointers are not freed by this call.
+```c
+char **arg_get_multiple_string(arg_table *table, const char *name, int *out_count);
+int   *arg_get_multiple_int   (arg_table *table, const char *name, int *out_count);
+float *arg_get_multiple_float (arg_table *table, const char *name, int *out_count);
+```
 
-#### `float * arg_get_multiple_float(arg_table *table, const char *name, int *out_count)`
-Same ownership rules as `arg_get_multiple_int`. Returns a **newly `malloc`'d** `float[]`. **You must `free` this array.**
+> `arg_get_multiple_int` and `arg_get_multiple_float` return a **newly allocated array — you must `free` it**.  
+> `arg_get_multiple_string` returns the parser's internal pointer — do **not** `free` it.
 
-#### `char ** arg_get_multiple_string(arg_table *table, const char *name, int *out_count)`
-Returns the internal `char **` directly — no new allocation. Do **not** `free` the array or any of its strings.
+```c
+int count;
+char **tags = arg_get_multiple_string(table, "--tags", &count);
+for (int i = 0; i < count; i++)
+    printf("Tag %d: %s\n", i + 1, tags[i]);
 
----
-
-### Error Helpers
-
-These are public but intended for internal use. Both print to `stderr` and call `exit(EXIT_FAILURE)`.
-
-#### `void argument_parser_panic(const char *message, ...)`
-For internal/programmer errors (null table, malloc failure, wrong type in getter). Output prefix: `Argument Parser PANIC:` in bold red.
-
-#### `void argument_parser_error(const char *fmt, ...)`
-For user-facing input errors (unknown flag, duplicate flag, missing value). Output prefix: `An Error Occured While Parsing Arguments:` in bold red.
-
-Both functions use `vfprintf` and accept `printf`-style format strings.
-
----
-
-## Flag Syntax Rules
-
-The parser uses an internal `is_flag()` heuristic to distinguish flags from values when consuming tokens:
-
-| Token pattern | Classified as |
-|---|---|
-| Starts with `--` | flag |
-| Starts with `-` followed by a letter | flag |
-| Starts with `-` followed by a digit | **value** (negative number) |
-| Starts with `-` followed by `.` | **value** (e.g. `-.5`) |
-| Starts with `-` alone (`-\0`) | value |
-| Anything else | value |
-
-This means `--numbers -3 -7 -1` is valid: `-3`, `-7`, `-1` are consumed as three integer values for a MULTIPLE INTEGER argument.
-
-**However, the parser cannot disambiguate** `-3` as a negative number versus an unregistered short flag in all contexts. If you have a short flag `-3` registered, it will be matched as a flag, not a value.
-
-Flags must be provided as **full tokens** — the parser does not support `--port=9000` or `-p9000` syntax. The space-separated form `--port 9000` is the only accepted style.
+int *vals = arg_get_multiple_int(table, "--val", &count);
+for (int i = 0; i < count; i++)
+    printf("Val %d: %d\n", i + 1, vals[i]);
+free(vals);  // required
+```
 
 ---
 
-## Help System
+## Help Output
 
-`print_help` is automatically invoked when `--help` or `-h` appears anywhere in `argv`, and also before most error exits. It prints to `stdout` in the following format:
+Pass `--help` or `-h` anywhere on the command line to print usage and exit:
 
 ```
-Usage: ./myapp [options]
+Usage: ./test [options]
 
 Options:
-  --host               -H    <string>    [required]             Server hostname
-  --port               -p    <int>       [optional]             Port number
-  --verbose            -v    <bool>      [optional]             Enable verbose output
-  --tags               -t    <string>    [optional]  [multiple] One or more tags
+  --host               -H      <string>    [required]              Server hostname
+  --port               -p      <int>       [optional]              Port number (default 8080)
+  --verbose            -v      <bool>      [optional]              Enable verbose output
+  --tags               -t      <string>    [optional]  [multiple]  One or more tags
+  --timeout                    <float>     [optional]              Timeout in seconds
+  --val                        <int>       [optional]  [multiple]  One or more integer values
 ```
 
-`[required]` is highlighted in bold red via ANSI escape codes. Terminals that do not support ANSI will display the raw escape sequences.
+`[required]` is highlighted in bold red on terminals that support ANSI colour codes. Help is also printed automatically before most error exits.
 
 ---
 
-## Error Behaviour
+## Error Handling
 
-Every error — whether a programmer mistake or bad user input — calls `exit(EXIT_FAILURE)`. There is no error-code return path and no way to recover from a parse error at runtime.
+All errors print to `stderr` and exit with a failure code. There is no error-return path.
 
-| Situation | Function called | Exits? |
-|---|---|---|
-| `malloc`/`realloc` failure | `argument_parser_panic` | Yes |
-| `NULL` table passed to any function | `argument_parser_panic` | Yes |
-| Wrong getter type (e.g. `arg_get_int` on a STRING) | `argument_parser_panic` | Yes |
-| Argument name not found in table | `argument_parser_panic` | Yes |
-| Unknown flag on command line | `argument_parser_error` + `print_help` | Yes |
-| Duplicate flag on command line | `argument_parser_error` + `print_help` | Yes |
-| Required argument missing | `argument_parser_panic` + `print_help` | Yes |
-| Missing value after a non-boolean flag | `argument_parser_error` | Yes |
-| MULTIPLE flag with zero following values | `argument_parser_error` | Yes |
-| `--help` / `-h` | `print_help` + `exit(EXIT_SUCCESS)` | Yes |
+| Situation | Error message |
+|---|---|
+| Unknown flag | `An Error Occured While Parsing Arguments: Unknown argument: --unknown` |
+| Duplicate flag | `An Error Occured While Parsing Arguments: Argument '...' is provided multiple times.` |
+| Non-numeric value for integer flag | `An Error Occured While Parsing Arguments: Invalid integer value: 'not_a_number'` |
+| Non-numeric value for float flag | `An Error Occured While Parsing Arguments: Invalid float value: 'not_a_float'` |
+| Integer exceeds `INT_MAX`/`INT_MIN` | `An Error Occured While Parsing Arguments: Invalid integer value(Bound Excceded): '999999999999'` |
+| MULTIPLE flag with no following values | `An Error Occured While Parsing Arguments: Expected at least one value after '-t'` |
+| Required argument missing | `Argument Parser PANIC: Required argument '...' was not provided.` |
+| Internal error (null pointer, malloc fail) | `Argument Parser PANIC: ...` |
+
+---
+
+## Running the Tests
+
+A test script is included. Compile `test.c` first, then run:
+
+```bash
+gcc -o test test.c
+
+# Happy-path tests
+./test.sh
+
+# Error-handling tests
+./test.sh --fail
+```
+
+The happy-path run exercises strings, integers, floats, booleans, multi-value flags, and mixed combinations. The `--fail` run covers invalid integers, invalid floats, missing multi-values, unknown flags, and integer overflow — all of which should exit with a clear error message.
 
 ---
 
 ## Limitations
 
-These are not bugs — they are deliberate design constraints or known gaps to be aware of:
-
-**No `=` syntax.** `--port=9000` is not supported. Only `--port 9000` works.
-
-**No short-flag combining.** `-vxz` (combining multiple single-character flags) is not supported. Each flag must be a separate token.
-
-**No default values.** The parser has no built-in mechanism for defaults. You must check `->is_present` and apply a default yourself in application code.
-
-**No integer/float validation.** `atoi` and `atof` return `0` silently for non-numeric input. `"--port abc"` will parse as port `0` with no warning.
-
-**No integer overflow detection.** `atoi` has undefined behaviour on overflow. Values outside `INT_MIN`/`INT_MAX` are unsafe.
-
-**Duplicate flag = hard error.** Passing `--verbose --verbose` exits the program. There is no `last-wins` or `count` mode.
-
-**BOOLEAN + MULTIPLE is undefined.** The boolean branch fires first and consumes no value tokens; the MULTIPLE logic is never reached. Do not combine them.
-
-**No subcommand support.** There is no concept of `git commit --message "..."` style subcommands. All flags are flat.
-
-**Positional arguments are not supported.** Every argument must be preceded by its flag. Bare words that do not match a registered flag cause an error.
-
-**Memory is never freed.** There is no `free_argument_parser()` function. The `arg_table`, all `arg_opt` structs, all `strdup`'d strings, and all parsed values remain allocated until process exit. For short-lived CLI programs this is fine; for library use or long-running processes it would be a leak.
-
-**`arg_get_multiple_int` and `arg_get_multiple_float` allocate; caller must free.** The returned arrays are heap-allocated. `arg_get_multiple_string` returns the internal pointer and must **not** be freed.
-
-**`print_help` uses ANSI escape codes unconditionally.** No `isatty()` check is performed. Redirecting output to a file will include raw escape sequences.
-
-**Thread safety: none.** The parser performs no synchronisation. It must be used only from a single thread.
-
-**`argument_name_long` and `argument_name_short` must include dashes.** The parser does a raw `strcmp` against `argv` tokens, so `"port"` will never match `"--port"`. Always pass `"--port"` and `"-p"`.
-
----
-
-## Memory Notes
-
-| Allocation | Owner | Must free? |
-|---|---|---|
-| `arg_table` itself | parser | No (no destructor) |
-| `arg_opt` structs | parser | No |
-| `strdup`'d names and help text | parser | No |
-| `argument_value` (STRING) | parser | No |
-| `argument_value` (INTEGER/FLOAT/BOOLEAN) | parser | No |
-| `multiple_argument_values` (STRING) | parser | No |
-| `multiple_argument_values[i]` (STRING) | parser | No |
-| `multiple_argument_values[i]` (INT/FLOAT) | parser | No |
-| Array returned by `arg_get_multiple_int` | **caller** | **Yes — `free(result)`** |
-| Array returned by `arg_get_multiple_float` | **caller** | **Yes — `free(result)`** |
-| Array returned by `arg_get_multiple_string` | parser | No |
+- **`--flag=value` syntax Omitted.** Space-separated form only.
+- **No combined short flags.** `-vp 9000` is not supported; use `-v -p 9000`.
+- **No built-in defaults.** Check `->is_present` and apply defaults in your own code.
+- **No positional arguments.** Every value must be preceded by its flag.
+- **No subcommands.** All flags are flat; there is no `git commit`-style dispatch.
+- **`BOOLEAN | MULTIPLE` is Not Allowed.**.
+- **No thread safety.** Update from a single thread only, preferabbly the one with main().
+- **ANSI escape codes are always emitted.** Redirecting help output to a file will include raw colour sequences.

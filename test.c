@@ -34,6 +34,7 @@ int main(int argc, char **argv) {
         for(int i = 0; i < val_count; i++) {
             printf("Val %d: %d\n", i + 1, vals[i]);
         }
+        free(vals); // Free the allocated array for integer values
     }
 
     float timeout = 0.0f;

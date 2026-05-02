@@ -295,6 +295,11 @@ arg_table *add_argument(arg_table *table, const char *verbose_name, const char *
                         arg_type type, const char *help_text) {
     if (table == NULL)
         argument_parser_panic("Argument table is not initialized.");
+
+    if(verbose_name == NULL || strlen(verbose_name) == 0)
+        argument_parser_panic("Argument long name cannot be NULL or empty.");
+    if(type & ARGUMENT_TYPE_BOOLEAN && type & ARGUMENT_TYPE_MULTIPLE)
+        argument_parser_panic("Argument '%s' cannot be both BOOLEAN and MULTIPLE.", verbose_name);
     
     if(strcmp(verbose_name, "--help") == 0 || strcmp(verbose_name, "-h") == 0) {
         argument_parser_panic("Cannot use reserved argument name '%s'.", verbose_name);
