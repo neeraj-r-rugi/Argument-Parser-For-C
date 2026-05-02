@@ -40,5 +40,7 @@ int main(int argc, char **argv) {
     if (arg_get(table, "--timeout")->is_present)
         timeout = arg_get_float(table, "--timeout");
     printf("Host: %s  Port: %d  Verbose: %d Timeout: %.2f\n", host, port, verbose, timeout);
+    free_argument_table(table);
+    table = NULL; // prevent dangling pointer
     return 0;
 }

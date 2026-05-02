@@ -206,6 +206,15 @@ void cast_to_int(const char * val, int * out);
 */
 void cast_to_float(const char * val, float * out);
 
+/*
+    * CAUTION: This function will free all memory allocated for the argument table. Use it when the argument table is no longer needed to prevent memory leaks.
+    * Input: Pointer to the argument table
+    * Output: None (the function will free all allocated memory for the argument table)
+    * Description:
+    * Frees all memory allocated for the argument table, including the argument options and their values. This function should be called when the argument table is no longer needed to prevent memory leaks.
+*/
+void free_argument_table(arg_table * table);
+
 #endif
 
 
@@ -619,6 +628,28 @@ char **arg_get_multiple_string(arg_table *table, const char *name, int *out_coun
     return (char **)arg->multiple_argument_values;
 }
 
+void free_argument_table(arg_table *table) {
+    if (table == NULL) return;
+
+    for (int i = 0; i < table->total_arguments; i++) {
+        arg_opt *arg = table->arguments[i];
+        if (arg) {
+            free(arg->argument_name_long);
+            free(arg->argument_name_short);
+            free(arg->help_text);
+            if (arg->argument_value) free(arg->argument_value);
+            if (arg->multiple_argument_values) {
+                for (int j = 0; j < arg->argument_count; j++) {
+                    if (arg->multiple_argument_values[j]) free(arg->multiple_argument_values[j]);
+                }
+                free(arg->multiple_argument_values);
+            }
+            free(arg);
+        }
+    }
+    free(table->arguments);
+    free(table);
+}
 
 void cast_to_int(const char *val, int *out) {
     char *end;
