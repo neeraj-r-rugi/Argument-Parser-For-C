@@ -680,7 +680,7 @@ void cast_to_int(const char *val, int *out) {
 void cast_to_float(const char *val, float *out) {
     char *end;
     errno = 0;
-    float temp = strtod(val, &end);
+    float temp = strtof(val, &end);
     // No conversion performed
     if (end == val)
         argument_parser_error("Invalid float value: '%s'", val);
