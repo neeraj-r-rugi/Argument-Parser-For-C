@@ -9,6 +9,7 @@ int main(int argc, char **argv) {
     add_argument(table, "--verbose", "-v", ARGUMENT_TYPE_BOOLEAN,                          "Enable verbose output");
     add_argument(table, "--tags",    "-t", ARGUMENT_TYPE_STRING | ARGUMENT_TYPE_MULTIPLE,  "One or more tags");
     add_argument(table, "--timeout", NULL, ARGUMENT_TYPE_FLOAT,                            "Timeout in seconds");
+    add_argument(table, "--val", NULL, ARGUMENT_TYPE_INTEGER | ARGUMENT_TYPE_MULTIPLE, "One or more integer values");
 
     parse_all_arguments(table, argc, argv);
 
@@ -26,6 +27,14 @@ int main(int argc, char **argv) {
         for(int i = 0; i < tag_count; i++) {
             printf("Tag %d: %s\n", i + 1, tags[i]);
         }
+
+    if (arg_get(table, "--val")->is_present) {
+        int val_count;
+        int *vals = arg_get_multiple_int(table, "--val", &val_count);
+        for(int i = 0; i < val_count; i++) {
+            printf("Val %d: %d\n", i + 1, vals[i]);
+        }
+    }
 
     float timeout = 0.0f;
     if (arg_get(table, "--timeout")->is_present)

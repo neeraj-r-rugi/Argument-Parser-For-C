@@ -298,8 +298,8 @@ arg_table *add_argument(arg_table *table, const char *verbose_name, const char *
     }
     for (int i = 0; i < table->total_arguments; i++) {
         arg_opt *arg = table->arguments[i];
-        if (strcmp(arg->argument_name_long, verbose_name) == 0 ||
-            strcmp(arg->argument_name_short, short_name) == 0)
+        if ((strcmp(arg->argument_name_long, verbose_name) == 0 ||
+            strcmp(arg->argument_name_short, short_name) == 0) && strcmp(short_name, "") != 0)
             argument_parser_panic("Argument name '%s' or short name '%s' is already in use.", verbose_name, short_name);
     }
 
