@@ -8,6 +8,7 @@ int main(int argc, char **argv) {
     add_argument(table, "--port",    "-p", ARGUMENT_TYPE_INTEGER,                          "Port number (default 8080)");
     add_argument(table, "--verbose", "-v", ARGUMENT_TYPE_BOOLEAN,                          "Enable verbose output");
     add_argument(table, "--tags",    "-t", ARGUMENT_TYPE_STRING | ARGUMENT_TYPE_MULTIPLE,  "One or more tags");
+    add_argument(table, "--timeout", "-T", ARGUMENT_TYPE_FLOAT,                            "Timeout in seconds");
 
     parse_all_arguments(table, argc, argv);
 
@@ -26,6 +27,9 @@ int main(int argc, char **argv) {
             printf("Tag %d: %s\n", i + 1, tags[i]);
         }
 
-    printf("Host: %s  Port: %d  Verbose: %d\n", host, port, verbose);
+    float timeout = 0.0f;
+    if (arg_get(table, "--timeout")->is_present)
+        timeout = arg_get_float(table, "--timeout");
+    printf("Host: %s  Port: %d  Verbose: %d Timeout: %.2f\n", host, port, verbose, timeout);
     return 0;
 }

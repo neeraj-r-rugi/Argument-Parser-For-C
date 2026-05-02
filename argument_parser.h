@@ -191,6 +191,21 @@ float * arg_get_multiple_float(arg_table * table, const char * name, int * out_c
 */
 char ** arg_get_multiple_string(arg_table * table, const char * name, int * out_count);
 
+/*
+    * Input: A string value to convert and a pointer to an integer to store the result
+    * Output: None (the function will store the converted integer in the provided pointer)
+    * Description:
+    * Converts a string value to an integer. The function checks for valid integer format, handles overflow and underflow, and raises errors for invalid input. If the conversion is successful, it stores the result in the provided integer pointer.
+*/
+void cast_to_int(const char * val, int * out);
+/*
+    * Input: A string value to convert and a pointer to a double to store the result
+    * Output: None (the function will store the converted float in the provided pointer)
+    * Description:
+    * Converts a string value to a float (double). The function checks for valid float format, handles overflow and underflow, and raises errors for invalid input. If the conversion is successful, it stores the result in the provided double pointer.
+*/
+void cast_to_float(const char * val, float * out);
+
 #endif
 
 
@@ -201,6 +216,8 @@ char ** arg_get_multiple_string(arg_table * table, const char * name, int * out_
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <errno.h>
+#include <limits.h>
 #define GNU_SOURCE // for strdup
 
 void print_help(arg_table *table, const char *program_name) {
@@ -369,13 +386,13 @@ arg_table *parse_all_arguments(arg_table *table, int argc, char **argv) {
                     if (arg->argument_type & ARGUMENT_TYPE_INTEGER) {
                         int *n = malloc(sizeof(int));
                         if (!n) argument_parser_panic("malloc failed for multiple int '%s'", current_word);
-                        *n = atoi(val);
+                        cast_to_int(val, n);
                         arg->multiple_argument_values[j] = n;
 
                     } else if (arg->argument_type & ARGUMENT_TYPE_FLOAT) {
                         float *f = malloc(sizeof(float));
                         if (!f) argument_parser_panic("malloc failed for multiple float '%s'", current_word);
-                        *f = atof(val);
+                        cast_to_float(val, f);
                         arg->multiple_argument_values[j] = f;
 
                     } else {
@@ -401,13 +418,13 @@ arg_table *parse_all_arguments(arg_table *table, int argc, char **argv) {
                 } else if (arg->argument_type & ARGUMENT_TYPE_INTEGER) {
                     int *n = malloc(sizeof(int));
                     if (!n) argument_parser_panic("malloc failed for '%s'", current_word);
-                    *n = atoi(val);
+                    cast_to_int(val, n);
                     arg->argument_value = n;
 
                 } else if (arg->argument_type & ARGUMENT_TYPE_FLOAT) {
                     float *f = malloc(sizeof(float));
                     if (!f) argument_parser_panic("malloc failed for '%s'", current_word);
-                    *f = atof(val);
+                    cast_to_float(val, f);
                     arg->argument_value = f;
 
                 } else {
@@ -590,4 +607,42 @@ char **arg_get_multiple_string(arg_table *table, const char *name, int *out_coun
     return (char **)arg->multiple_argument_values;
 }
 
+void cast_to_int(const char *val, int *out) {
+    char *end;
+    errno = 0;
+
+    long temp = strtol(val, &end, 10);
+    // Check: no digits were found
+    if (end == val) 
+        argument_parser_error("Invalid integer value: '%s'", val);  
+    // Check: extra characters after number
+    if (*end != '\0')
+        argument_parser_error("Invalid integer value (extra characters): '%s'", val);
+    // Check: overflow/underflow from strtol
+    if (errno == ERANGE) 
+        argument_parser_error("Integer value out of range: '%s'", val);
+    // Check: fits in int
+    if (temp < INT_MIN || temp > INT_MAX)
+        argument_parser_error("Invalid integer value(Bound Excceded): '%s'", val);
+    *out = (int)temp;
+}
+
+
+
+void cast_to_float(const char *val, float *out) {
+    char *end;
+    errno = 0;
+    double temp = strtod(val, &end);
+    // No conversion performed
+    if (end == val)
+        argument_parser_error("Invalid float value: '%s'", val);
+    // Extra characters after number
+    if (*end != '\0')
+        argument_parser_error("Invalid float value (extra characters): '%s'", val);
+    // Overflow / underflow
+    if (errno == ERANGE) 
+        argument_parser_error("Float value out of range: '%s'", val);
+
+    *out = temp;
+}
 #endif
