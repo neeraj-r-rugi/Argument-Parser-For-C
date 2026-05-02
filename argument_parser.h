@@ -227,7 +227,6 @@ void free_argument_table(arg_table * table);
 #include <stdarg.h>
 #include <errno.h>
 #include <limits.h>
-#define GNU_SOURCE // for strdup
 
 void print_help(arg_table *table, const char *program_name) {
     printf("\nUsage: %s [options]\n\n", program_name);
