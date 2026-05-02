@@ -91,7 +91,7 @@ Combine a **base type** with optional **modifiers** using bitwise OR.
 | `ARGUMENT_TYPE_STRING` | `--flag value` | Any string |
 | `ARGUMENT_TYPE_INTEGER` | `--flag 42` | Signed integer within `INT_MIN`/`INT_MAX` |
 | `ARGUMENT_TYPE_FLOAT` | `--flag 3.14` | Floating-point number |
-| `ARGUMENT_TYPE_BOOLEAN` | `--flag` | No value — presence means `true` |
+| `ARGUMENT_TYPE_BOOLEAN` | `--flag` | No value. Presence of argument means `true` |
 
 ### Modifiers
 
@@ -115,11 +115,13 @@ ARGUMENT_TYPE_BOOLEAN                                                     // opt
 
 | Style | Supported |
 |---|---|
-| `--flag value` | ✔ |
-| `-f value` | ✔ |
-| `--flag=value` | ✘ |
-| `-fvalue` | ✘ |
-| Combined short flags (`-vxz`) | ✘ |
+| `--flag value` | Yes |
+| `-f value` | Yes |
+| `--flag=value` | No |
+| `-fvalue` | No |
+| Combined short flags (`-vxz`) | No |
+
+Least Redundant Syntax Philosophy was kept as spirit while deciding the syntax.
 
 Flags must always include the dash(es) in the name you register:
 
@@ -256,8 +258,6 @@ All errors print to `stderr` and exit with a failure code. There is no error-ret
 A test script is included. Compile `test.c` first, then run:
 
 ```bash
-gcc -o test test.c
-
 # Happy-path tests
 ./test.sh
 
