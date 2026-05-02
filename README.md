@@ -273,6 +273,7 @@ The happy-path run exercises strings, integers, floats, booleans, multi-value fl
 
 - **`--flag=value` syntax Omitted.** Space-separated form only.
 - **No combined short flags.** `-vp 9000` is not supported; use `-v -p 9000`.
+- **No raw positional value support with `--` yet.**
 - **No built-in defaults.** Check `->is_present` and apply defaults in your own code.
 - **No positional arguments.** Every value must be preceded by its flag.
 - **No subcommands.** All flags are flat; there is no `git commit`-style dispatch.
