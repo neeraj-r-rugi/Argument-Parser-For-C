@@ -64,8 +64,8 @@ int main(int argc, char **argv) {
         int *vals = arg_get_multiple_int(table, "--val", &val_count);
         for(int i = 0; i < val_count; i++) {
             printf("Val %d: %d\n", i + 1, vals[i]);
-            free(vals); // Free the allocated array for integer values
         }
+        free(vals); // Free the allocated array for integer values
     }
 
     float timeout = 0.0f;
@@ -131,6 +131,63 @@ add_argument(table, "output",   "o",  ...);   // will never match argv
 ```
 
 Negative numbers are treated as values, not flags. `--val -3 -7` works correctly for a MULTIPLE INTEGER argument.
+
+---
+
+## The `--` Sentinel
+
+The bare `--` token has special meaning in this parser. Its behaviour differs depending on whether the preceding flag accepts a single value or multiple values.
+
+### Single-value arguments: escaping a dash-prefixed value
+
+For single-value flags, placing `--` immediately after the flag name signals that the **next token is a literal value**, even if it begins with `-`. This lets you pass values that would otherwise be mistaken for flags.
+
+```bash
+./test --host -- -myserver
+```
+
+Here `--` tells the parser: *the next word is the value for `--host`, not a new flag*. The stored value is `-myserver`.
+
+Without `--`, a token starting with `-` following a single-value flag would be rejected as an unknown flag or cause a parse error.
+
+### Multiple-value arguments: dash-prefixed values and chain termination
+
+For `ARGUMENT_TYPE_MULTIPLE` flags, `--` serves two purposes simultaneously:
+
+1. **Opens a dash-safe value window** — all tokens after `--` that begin with `-` are treated as literal values, not flags.
+2. **Closes the window on the second `--`** — a second bare `--` terminates the value chain and resumes normal flag parsing for the rest of the command line.
+
+```bash
+./test -H localhost -t -- -tag1 -tag2 -tag3 -- --verbose
+```
+
+Output:
+```
+Tag 1: -tag1
+Tag 2: -tag2
+Tag 3: -tag3
+Host: localhost  Port: 8080  Verbose: 1 Timeout: 0.00
+```
+
+**What happens step by step:**
+
+| Token | Interpretation |
+|---|---|
+| `-H localhost` | `--host` = `"localhost"` |
+| `-t` | begin collecting values for `--tags` |
+| `--` | enter dash-safe window for `-t` |
+| `-tag1 -tag2 -tag3` | literal string values for `--tags` |
+| `--` | close dash-safe window; resume normal parsing |
+| `--verbose` | parsed normally as the `--verbose` boolean flag |
+
+> Without the closing `--`, `--verbose` would be consumed as another value for `--tags` instead of being recognised as its own flag.
+
+### Summary
+
+| Context | `--` effect |
+|---|---|
+| After a single-value flag | Next token is treated as the value verbatim, even if it starts with `-` |
+| After a `MULTIPLE` flag | Opens a dash-safe collection window; a second `--` closes it and resumes flag parsing |
 
 ---
 
@@ -273,10 +330,10 @@ The happy-path run exercises strings, integers, floats, booleans, multi-value fl
 
 - **`--flag=value` syntax Omitted.** Space-separated form only.
 - **No combined short flags.** `-vp 9000` is not supported; use `-v -p 9000`.
-- **No raw positional value support with `--` yet.**
+- **No raw positional value support without `--` yet** (single-value escape and MULTIPLE chain sentinel are supported; bare positional arguments are not).
 - **No built-in defaults.** Check `->is_present` and apply defaults in your own code.
 - **No positional arguments.** Every value must be preceded by its flag.
 - **No subcommands.** All flags are flat; there is no `git commit`-style dispatch.
-- **`BOOLEAN | MULTIPLE` is Not Allowed.**.
-- **No thread safety.** Update from a single thread only, preferabbly the one with main().
+- **`BOOLEAN | MULTIPLE` is Not Allowed.**
+- **No thread safety.** Update from a single thread only, preferably the one with `main()`.
 - **ANSI escape codes are always emitted.** Redirecting help output to a file will include raw colour sequences.

@@ -396,10 +396,20 @@ arg_table *parse_all_arguments(arg_table *table, int argc, char **argv) {
             } else if (arg->argument_type & ARGUMENT_TYPE_MULTIPLE) {
                 int count = 0;
                 int start = current_argument + 1;
-                while (start + count < argc && !is_flag(argv[start + count]))
+                int is_special_case = 0;
+                int end_special_case = 0;
+                if(!(start >= argc) && (strcmp(argv[start], "--") == 0)) {start++;is_special_case = 1;}
+                while (start + count < argc && (!is_flag(argv[start + count]) || is_special_case && !end_special_case)) {
+                    if(strcmp(argv[start + count], "--") == 0){
+                        end_special_case = 1;
+                        continue;
+                    }
                     count++;
+                } 
+                    
                 if (count == 0)
                     argument_parser_error("Expected at least one value after '%s'", current_word);
+                
 
                 arg->multiple_argument_values = malloc(sizeof(void *) * count);
                 if (!arg->multiple_argument_values)
@@ -426,7 +436,8 @@ arg_table *parse_all_arguments(arg_table *table, int argc, char **argv) {
                 }
 
                 arg->argument_count = count;
-                current_argument += count;
+                current_argument += (is_special_case)? count + 1 : count;
+                current_argument += (end_special_case)? 1 : 0;
 
             } else {
                 if (current_argument + 1 >= argc)
@@ -434,9 +445,12 @@ arg_table *parse_all_arguments(arg_table *table, int argc, char **argv) {
 
                 char *val = argv[++current_argument];
 
-                if (is_flag(val))
+                if (is_flag(val) && !(strcmp(val, "--") == 0))
                     argument_parser_error("Expected value after '%s', got flag '%s'", current_word, val);
-
+                
+                if((strcmp(val, "--") == 0))
+                    val = argv[++current_argument];
+                    
                 if (arg->argument_type & ARGUMENT_TYPE_STRING) {
                     arg->argument_value = strdup(val);
 
