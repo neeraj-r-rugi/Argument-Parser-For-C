@@ -67,12 +67,13 @@ int main(int argc, char **argv) {
 
     int tag_count;
     char **tags = NULL;
-    if (arg_get(table, "--tags")->is_present)
+    if (arg_get(table, "--tags")->is_present){
         tags = arg_get_multiple_string(table, "--tags", &tag_count);
         for(int i = 0; i < tag_count; i++) {
             printf("Tag %d: %s\n", i + 1, tags[i]);
         }
         free_multiple_strings(tags, tag_count); // Free the allocated array for string values
+    }
 
     if (arg_get(table, "--val")->is_present) {
         int val_count;
