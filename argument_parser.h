@@ -132,7 +132,8 @@ arg_opt * arg_get(arg_table * table, const char * name);
     * Output: The string value of the specified argument
     * Description:
     * Retrieves the value of a string argument from the argument table. It checks if the argument exists, is of the correct type, and has a value before returning it. If any of these conditions are not met, it raises an error.
-*/
+    * Note: Useful for retrieving string arguments directly with metadata.
+    */
 char * arg_get_string(arg_table * table, const char * name);
 /*
     * Input: Pointer to the argument table and the name of the argument to retrieve
@@ -214,6 +215,31 @@ void cast_to_float(const char * val, float * out);
     * Frees all memory allocated for the argument table, including the argument options and their values. This function should be called when the argument table is no longer needed to prevent memory leaks.
 */
 void free_argument_table(arg_table * table);
+
+/*
+    * CAUTION: This function will free all memory allocated for an array of strings. Use it when the array of strings is no longer needed to prevent memory leaks.
+    * Input: An array of strings and the count of strings in the array
+    * Output: None (the function will free all allocated memory for the array of strings)
+    * Description:
+    * Frees all memory allocated for an array of strings, including each individual string and the array itself. This function should be called when the array of strings is no longer needed to prevent memory leaks.
+*/
+void free_multiple_strings(char ** strings, int count);
+/*
+    * CAUTION: This function will free all memory allocated for an array of integers. Use it when the array of integers is no longer needed to prevent memory leaks.
+    * Input: An array of integers
+    * Output: None (the function will free all allocated memory for the array of integers)
+    * Description:
+    * Frees all memory allocated for an array of integers. This function should be called when the array of integers is no longer needed to prevent memory leaks.
+*/
+void free_multiple_ints(int * ints);
+/*
+    * CAUTION: This function will free all memory allocated for an array of floats. Use it when the array of floats is no longer needed to prevent memory leaks.
+    * Input: An array of floats
+    * Output: None (the function will free all allocated memory for the array of floats)
+    * Description:
+    * Frees all memory allocated for an array of floats. This function should be called when the array of floats is no longer needed to prevent memory leaks.
+*/
+void free_multiple_floats(float * floats);
 
 #endif
 
@@ -643,8 +669,18 @@ char **arg_get_multiple_string(arg_table *table, const char *name, int *out_coun
     if (out_count != NULL)
         *out_count = arg->argument_count;
 
-    return (char **)arg->multiple_argument_values;
+    char ** result = malloc(sizeof(char *) * arg->argument_count);
+    if (!result)
+        argument_parser_panic("arg_get_multiple_string: malloc failed for '%s'.", name);
+    for (int i = 0; i < arg->argument_count; i++) {
+        result[i] = strdup((char *)arg->multiple_argument_values[i]);
+        if (!result[i])
+            argument_parser_panic("arg_get_multiple_string: malloc failed for string '%s' in argument '%s'.", (char *)arg->multiple_argument_values[i], name);
+    }
+
+    return result;
 }
+
 
 void free_argument_table(arg_table *table) {
     if (table == NULL) return;
@@ -668,6 +704,24 @@ void free_argument_table(arg_table *table) {
     free(table->arguments);
     free(table);
 }
+
+void free_multiple_ints(int *ints) {
+    if (ints) free(ints);
+    ints = NULL;
+}
+void free_multiple_floats(float *floats) {
+    if (floats) free(floats);
+    floats = NULL;
+}
+
+void free_multiple_strings(char **strings, int count) {
+    if (strings == NULL) return;
+    for (int i = 0; i < count; i++) {
+        if (strings[i]) free(strings[i]);
+    }
+    free(strings);
+    strings = NULL;
+}   
 
 void cast_to_int(const char *val, int *out) {
     char *end;

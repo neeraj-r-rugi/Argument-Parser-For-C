@@ -256,19 +256,19 @@ int   *arg_get_multiple_int   (arg_table *table, const char *name, int *out_coun
 float *arg_get_multiple_float (arg_table *table, const char *name, int *out_count);
 ```
 
-> `arg_get_multiple_int` and `arg_get_multiple_float` return a **newly allocated array — you must `free` it**.  
-> `arg_get_multiple_string` returns the parser's internal pointer — do **not** `free` it.
+> `arg_get_multiple_int`, `arg_get_multiple_float`, and `arg_get_multiple_string` return a **newly allocated array, you must `free` it** using the provided `free_multiple_ints()`, `free_multiple_floats()`, `free_multiple_strings()` functions. 
 
 ```c
 int count;
 char **tags = arg_get_multiple_string(table, "--tags", &count);
 for (int i = 0; i < count; i++)
     printf("Tag %d: %s\n", i + 1, tags[i]);
+free_multiple_strings(tags, count);
 
 int *vals = arg_get_multiple_int(table, "--val", &count);
 for (int i = 0; i < count; i++)
     printf("Val %d: %d\n", i + 1, vals[i]);
-free(vals);  // required
+free_multiple_ints(vals);  // required
 ```
 
 ---
@@ -326,14 +326,13 @@ The happy-path run exercises strings, integers, floats, booleans, multi-value fl
 
 ---
 
-## Limitations
+## Limitations and Design Choices
 
-- **`--flag=value` syntax Omitted.** Space-separated form only.
-- **No combined short flags.** `-vp 9000` is not supported; use `-v -p 9000`.
-- **No raw positional value support without `--` yet** (single-value escape and MULTIPLE chain sentinel are supported; bare positional arguments are not).
-- **No built-in defaults.** Check `->is_present` and apply defaults in your own code.
-- **No positional arguments.** Every value must be preceded by its flag.
-- **No subcommands.** All flags are flat; there is no `git commit`-style dispatch.
+- **`--flag=value` syntax Omitted.** Space-separated form only. Single Syntax Design Choice
+- **No combined short flags.** `-vp 9000` is not supported; use `-v -p 9000`. Single Syntax Design Choice
+- **No built-in defaults.** Intentional design decision to let the user to check `->is_present` and apply defaults to their own code as they see fit. 
+- **No positional arguments.** Every value must be preceded by its flag. Design choice to embrace Explicitness
+- **No subcommands.** All flags are flat; there is no `git commit`-style dispatch yet.
 - **`BOOLEAN | MULTIPLE` is Not Allowed.**
 - **No thread safety.** Update from a single thread only, preferably the one with `main()`.
-- **ANSI escape codes are always emitted.** Redirecting help output to a file will include raw colour sequences.
+- **ANSI escape codes are always emitted as of now.** Redirecting help output to a file will include raw colour sequences.

@@ -27,6 +27,7 @@ int main(int argc, char **argv) {
         for(int i = 0; i < tag_count; i++) {
             printf("Tag %d: %s\n", i + 1, tags[i]);
         }
+        free_multiple_strings(tags, tag_count); // Free the allocated array for string values
 
     if (arg_get(table, "--val")->is_present) {
         int val_count;
@@ -34,7 +35,7 @@ int main(int argc, char **argv) {
         for(int i = 0; i < val_count; i++) {
             printf("Val %d: %d\n", i + 1, vals[i]);
         }
-        free(vals); // Free the allocated array for integer values
+        free_multiple_ints(vals); // Free the allocated array for integer values
     }
 
     float timeout = 0.0f;

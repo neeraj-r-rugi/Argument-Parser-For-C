@@ -1,6 +1,6 @@
 #!/bin/bash
 # This script compiles and runs the test program for the argument parser library. It demonstrates various command-line argument combinations to verify that the parser correctly handles different types of arguments, including strings, integers, booleans, floats, and multiple values.
-gcc -o test test.c
+gcc -fsanitize=address,leak -g -o test test.c
 
 if [ $# -gt 0 ]; then
     fail="$1"
