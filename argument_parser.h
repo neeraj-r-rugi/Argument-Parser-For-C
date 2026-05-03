@@ -286,7 +286,7 @@ void print_help(arg_table *table, const char *program_name) {
 void argument_parser_error(const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
-    fprintf(stderr, "\033[1;31mAn Error Occured While Parsing Arguments:\033[0m ");
+    fprintf(stderr, "\033[1;31mAn Error Occurred While Parsing Arguments:\033[0m ");
     vfprintf(stderr, fmt, args);
     fprintf(stderr, "\n");
     va_end(args);
@@ -739,7 +739,7 @@ void cast_to_int(const char *val, int *out) {
         argument_parser_error("Integer value out of range: '%s'", val);
     // Check: fits in int
     if (temp < INT_MIN || temp > INT_MAX)
-        argument_parser_error("Invalid integer value(Bound Excceded): '%s'", val);
+        argument_parser_error("Invalid integer value(Bound Exceeded): '%s'", val);
     *out = (int)temp;
 }
 

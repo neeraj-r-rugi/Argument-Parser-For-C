@@ -315,12 +315,12 @@ All errors print to `stderr` and exit with a failure code. There is no error-ret
 
 | Situation | Error message |
 |---|---|
-| Unknown flag | `An Error Occured While Parsing Arguments: Unknown argument: --unknown` |
-| Duplicate flag | `An Error Occured While Parsing Arguments: Argument '...' is provided multiple times.` |
-| Non-numeric value for integer flag | `An Error Occured While Parsing Arguments: Invalid integer value: 'not_a_number'` |
-| Non-numeric value for float flag | `An Error Occured While Parsing Arguments: Invalid float value: 'not_a_float'` |
-| Integer exceeds `INT_MAX`/`INT_MIN` | `An Error Occured While Parsing Arguments: Invalid integer value(Bound Excceded): '999999999999'` |
-| MULTIPLE flag with no following values | `An Error Occured While Parsing Arguments: Expected at least one value after '-t'` |
+| Unknown flag | `An Error Occurred While Parsing Arguments: Unknown argument: --unknown` |
+| Duplicate flag | `An Error Occurred While Parsing Arguments: Argument '...' is provided multiple times.` |
+| Non-numeric value for integer flag | `An Error Occurred While Parsing Arguments: Invalid integer value: 'not_a_number'` |
+| Non-numeric value for float flag | `An Error Occurred While Parsing Arguments: Invalid float value: 'not_a_float'` |
+| Integer exceeds `INT_MAX`/`INT_MIN` | `An Error Occurred While Parsing Arguments: Invalid integer value(Bound Exceeded): '999999999999'` |
+| MULTIPLE flag with no following values | `An Error Occurred While Parsing Arguments: Expected at least one value after '-t'` |
 | Required argument missing | `Argument Parser PANIC: Required argument '...' was not provided.` |
 | Internal error (null pointer, malloc fail) | `Argument Parser PANIC: ...` |
 
