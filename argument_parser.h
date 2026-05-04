@@ -282,10 +282,10 @@ void print_help(arg_table *table, const char *program_name) {
         else if (arg->argument_type & ARGUMENT_TYPE_BOOLEAN) printf("  %-10s", "<bool>");
 
         // modifiers
-        #ifndef ARGUMENT_PARSER_NO_COLOR_HELP
+        #ifndef ARGUMENT_PARSER_NO_COLOR_OUTPUT
             printf("  %s", (arg->argument_type & ARGUMENT_TYPE_REQUIRED) ? "\033[1;31m[required]\033[0m" : "[optional]");
             printf("  %s", (arg->argument_type & ARGUMENT_TYPE_MULTIPLE) ? "[multiple]" : "          ");
-        #elif
+        #else
             printf("  %s", (arg->argument_type & ARGUMENT_TYPE_REQUIRED) ? "[required]" : "[optional]");
             printf("  %s", (arg->argument_type & ARGUMENT_TYPE_MULTIPLE) ? "[multiple]" : "          ");
         #endif
@@ -300,11 +300,11 @@ void print_help(arg_table *table, const char *program_name) {
 void argument_parser_error(const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
-    #ifndef ARGUMENT_PARSER_NO_COLOR_ERROR
+    #ifndef ARGUMENT_PARSER_NO_COLOR_OUTPUT
         fprintf(stderr, "\033[1;31mAn Error Occurred While Parsing Arguments:\033[0m ");
         vfprintf(stderr, fmt, args);
         fprintf(stderr, "\n");
-    #elif
+    #else
         fprintf(stderr, "An Error Occurred While Parsing Arguments: ");
         vfprintf(stderr, fmt, args);
         fprintf(stderr, "\n");
@@ -320,11 +320,11 @@ void argument_parser_error(const char *fmt, ...) {
 void argument_parser_panic(const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
-    #ifndef ARGUMENT_PARSER_NO_COLOR_ERROR
+    #ifndef ARGUMENT_PARSER_NO_COLOR_OUTPUT
         fprintf(stderr, "\033[1;31mArgument Parser PANIC:\033[0m ");
         vfprintf(stderr, fmt, args);
         fprintf(stderr, "\n");
-    #elif
+    #else
         fprintf(stderr, "Argument Parser PANIC: ");
         vfprintf(stderr, fmt, args);
         fprintf(stderr, "\n");

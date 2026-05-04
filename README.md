@@ -460,13 +460,13 @@ Options:
 `[required]` is highlighted in bold red on terminals that support ANSI colour codes. Help is also printed automatically before most error exits.
 
 ### Printing to a File
-If the output of the program is redirected to a file, then Include `ARGUMENT_PARSER_NO_COLOR_HELP` definition at the top of the source file. As without it, **ANSI escape codes are always emitted.** Redirecting help output to a file will include raw colour sequences.
+If the output of the program is redirected to a file, then Include `ARGUMENT_PARSER_NO_COLOR_OUTPUT` definition at the top of the source file. As without it, **ANSI escape codes are always emitted.** Redirecting help output to a file will include raw colour sequences.
 
 Use:
 ```C
 #define LOAD_ARGUMENT_PARSER
 #define ARGUMENT_PARSER_EXIT_ON_ERROR
-#define ARGUMENT_PARSER_NO_COLOR_HELP
+#define ARGUMENT_PARSER_NO_COLOR_OUTPUT
 //----Source File----
 ```
 
