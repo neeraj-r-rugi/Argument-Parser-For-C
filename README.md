@@ -8,13 +8,9 @@
 | $$  | $$| $$  \ $$| $$  \ $$        | $$    $$
 | $$  | $$| $$  | $$|  $$$$$$/        |  $$$$$$/
 |__/  |__/|__/  |__/ \______/          \______/ 
-                                                
-                                                
-                                                                                                                         
 ```
 
-
-A lightweight, single-header C argument parser. Drop one file into your project and get typed flags, multi-value support, required-argument enforcement, and auto-generated help with zero dependencies.
+A lightweight, single-header C argument parser. Drop one file into your project and get typed flags, multi-value support, required-argument enforcement, inline default values, and auto-generated help with zero dependencies.
 
 **Author:** Neeraj R Rugi  
 **License:** GPL-3.0
@@ -54,42 +50,36 @@ int main(int argc, char **argv) {
     add_argument(table, "--verbose", "-v", ARGUMENT_TYPE_BOOLEAN,                          "Enable verbose output");
     add_argument(table, "--tags",    "-t", ARGUMENT_TYPE_STRING | ARGUMENT_TYPE_MULTIPLE,  "One or more tags");
     add_argument(table, "--timeout", NULL, ARGUMENT_TYPE_FLOAT,                            "Timeout in seconds");
-    add_argument(table, "--val", NULL, ARGUMENT_TYPE_INTEGER | ARGUMENT_TYPE_MULTIPLE, "One or more integer values");
+    add_argument(table, "--val",     NULL, ARGUMENT_TYPE_INTEGER | ARGUMENT_TYPE_MULTIPLE, "One or more integer values");
 
     parse_all_arguments(table, argc, argv);
 
-    char *host    = arg_get_string(table, "--host");
+    // Default values are passed directly into the getter — no is_present check needed
+    char *host    = arg_get_string(table, "--host", NULL);
+    int   port    = arg_get_int(table,    "--port",    8080);
+    float timeout = arg_get_float(table,  "--timeout", 30.0f);
     int   verbose = arg_get_bool(table,   "--verbose");
 
-    int port = 8080;
-    if (arg_get(table, "--port")->is_present)
-        port = arg_get_int(table, "--port");
-
     int tag_count;
-    char **tags = NULL;
-    if (arg_get(table, "--tags")->is_present){
-        tags = arg_get_multiple_string(table, "--tags", &tag_count);
-        for(int i = 0; i < tag_count; i++) {
-            printf("Tag %d: %s\n", i + 1, tags[i]);
-        }
-        free_multiple_strings(tags, tag_count); // Free the allocated array for string values
+    char **tags = arg_get_multiple_string(table, "--tags", &tag_count, NULL);
+    if (tag_count > 0) {
+        printf("Tags:\n");
+        for (int i = 0; i < tag_count; i++)
+            printf(" - %s\n", tags[i]);
+        free_multiple_strings(&tags, tag_count);
     }
 
-    if (arg_get(table, "--val")->is_present) {
-        int val_count;
-        int *vals = arg_get_multiple_int(table, "--val", &val_count);
-        for(int i = 0; i < val_count; i++) {
-            printf("Val %d: %d\n", i + 1, vals[i]);
-        }
-        free_multiple_ints(vals); // Free the allocated array for integer values
+    int val_count;
+    int *vals = arg_get_multiple_int(table, "--val", &val_count, NULL);
+    if (val_count > 0) {
+        printf("Values:\n");
+        for (int i = 0; i < val_count; i++)
+            printf(" - %d\n", vals[i]);
+        free_multiple_ints(&vals);
     }
 
-    float timeout = 0.0f;
-    if (arg_get(table, "--timeout")->is_present)
-        timeout = arg_get_float(table, "--timeout");
-    printf("Host: %s  Port: %d  Verbose: %d Timeout: %.2f\n", host, port, verbose, timeout);
-    free_argument_table(table);
-    table = NULL; // prevent dangling pointer
+    printf("Host: %s  Port: %d  Verbose: %d  Timeout: %.2f\n", host, port, verbose, timeout);
+    free_argument_table(&table);
     return 0;
 }
 ```
@@ -107,7 +97,7 @@ Combine a **base type** with optional **modifiers** using bitwise OR.
 | `ARGUMENT_TYPE_STRING` | `--flag value` | Any string |
 | `ARGUMENT_TYPE_INTEGER` | `--flag 42` | Signed integer within `INT_MIN`/`INT_MAX` |
 | `ARGUMENT_TYPE_FLOAT` | `--flag 3.14` | Floating-point number |
-| `ARGUMENT_TYPE_BOOLEAN` | `--flag` | No value. Presence of argument means `true` |
+| `ARGUMENT_TYPE_BOOLEAN` | `--flag` | No value — presence means `true` |
 
 ### Modifiers
 
@@ -137,8 +127,6 @@ ARGUMENT_TYPE_BOOLEAN                                                     // opt
 | `-fvalue` | No |
 | Combined short flags (`-vxz`) | No |
 
-Least Redundant Syntax Philosophy was kept as spirit while deciding the syntax.
-
 Flags must always include the dash(es) in the name you register:
 
 ```c
@@ -146,7 +134,7 @@ add_argument(table, "--output", "-o", ...);   // correct
 add_argument(table, "output",   "o",  ...);   // will never match argv
 ```
 
-Negative numbers are treated as values, not flags. `--val -3 -7` works correctly for a MULTIPLE INTEGER argument.
+Negative numbers are treated as values, not flags. `--val -3 -7` works correctly for a `MULTIPLE INTEGER` argument.
 
 ---
 
@@ -156,7 +144,7 @@ The bare `--` token has special meaning in this parser. Its behaviour differs de
 
 ### Single-value arguments: escaping a dash-prefixed value
 
-For single-value flags, placing `--` immediately after the flag name signals that the **next token is a literal value**, even if it begins with `-`. This lets you pass values that would otherwise be mistaken for flags.
+For single-value flags, placing `--` immediately after the flag name signals that the **next token is a literal value**, even if it begins with `-`.
 
 ```bash
 ./test --host -- -myserver
@@ -164,14 +152,12 @@ For single-value flags, placing `--` immediately after the flag name signals tha
 
 Here `--` tells the parser: *the next word is the value for `--host`, not a new flag*. The stored value is `-myserver`.
 
-Without `--`, a token starting with `-` following a single-value flag would be rejected as an unknown flag or cause a parse error.
-
-### Multiple-value arguments: dash-prefixed values and chain termination
+### Multiple-value arguments: dash-safe window
 
 For `ARGUMENT_TYPE_MULTIPLE` flags, `--` serves two purposes simultaneously:
 
 1. **Opens a dash-safe value window** — all tokens after `--` that begin with `-` are treated as literal values, not flags.
-2. **Closes the window on the second `--`** — a second bare `--` terminates the value chain and resumes normal flag parsing for the rest of the command line.
+2. **Closes the window on the second `--`** — a second bare `--` terminates the value chain and resumes normal flag parsing.
 
 ```bash
 ./test -H localhost -t -- -tag1 -tag2 -tag3 -- --verbose
@@ -182,10 +168,8 @@ Output:
 Tag 1: -tag1
 Tag 2: -tag2
 Tag 3: -tag3
-Host: localhost  Port: 8080  Verbose: 1 Timeout: 0.00
+Host: localhost  Port: 8080  Verbose: 1 Timeout: 30.00
 ```
-
-**What happens step by step:**
 
 | Token | Interpretation |
 |---|---|
@@ -194,9 +178,7 @@ Host: localhost  Port: 8080  Verbose: 1 Timeout: 0.00
 | `--` | enter dash-safe window for `-t` |
 | `-tag1 -tag2 -tag3` | literal string values for `--tags` |
 | `--` | close dash-safe window; resume normal parsing |
-| `--verbose` | parsed normally as the `--verbose` boolean flag |
-
-> Without the closing `--`, `--verbose` would be consumed as another value for `--tags` instead of being recognised as its own flag.
+| `--verbose` | parsed normally as the boolean flag |
 
 ### Summary
 
@@ -231,60 +213,121 @@ arg_table *parse_all_arguments(arg_table *table, int argc, char **argv);
 Parses the command line. Handles `--help`/`-h`, unknown flags, duplicates, missing values, type errors, and required-argument checks. Exits the program on any error.
 
 ```c
-void free_argument_table(arg_table *table);
+void free_argument_table(arg_table **table);
 ```
-Frees all memory allocated by the parser. Call when done.
+Frees all memory allocated by the parser and sets the pointer to `NULL`, preventing dangling pointer access. Call when done.
 
 ---
 
 ### Retrieving Values
 
-#### Check presence first for optional arguments
-
-```c
-arg_opt *arg_get(arg_table *table, const char *name);
-```
-
-Use `->is_present` before calling a typed getter on an optional argument to avoid a panic:
-
-```c
-int port = 8080;
-if (arg_get(table, "--port")->is_present)
-    port = arg_get_int(table, "--port");
-```
-
 #### Single-value getters
 
+All single-value getters now accept a **`default_value`** parameter. If the argument was not supplied on the command line, the default is returned directly — no manual `is_present` check required.
+
 ```c
-char  *arg_get_string(arg_table *table, const char *name);
-int    arg_get_int   (arg_table *table, const char *name);
-float  arg_get_float (arg_table *table, const char *name);
-int    arg_get_bool  (arg_table *table, const char *name);  // returns 0 if absent — no panic
+char  *arg_get_string(arg_table *table, const char *name, const char *default_value);
+int    arg_get_int   (arg_table *table, const char *name, int         default_value);
+float  arg_get_float (arg_table *table, const char *name, float       default_value);
+int    arg_get_bool  (arg_table *table, const char *name);  // always returns 0 if absent — no panic
+```
+
+**Examples:**
+
+```c
+// Returns "localhost" if --host was not provided
+char *host = arg_get_string(table, "--host", "localhost");
+
+// Returns 8080 if --port was not provided
+int port = arg_get_int(table, "--port", 8080);
+
+// Returns 30.0f if --timeout was not provided
+float timeout = arg_get_float(table, "--timeout", 30.0f);
+
+// Always safe — returns 0 if --verbose is absent
+int verbose = arg_get_bool(table, "--verbose");
+```
+
+> Passing `NULL` as the default for `arg_get_string` is valid when the flag is `ARGUMENT_TYPE_REQUIRED`, since the parser will have already exited before the getter is reached if the flag is absent.
+
+#### Checking presence explicitly
+
+If you need to distinguish between "not provided" and "provided with a value equal to the default", use `arg_get` and check `->is_present`:
+
+```c
+arg_opt *opt = arg_get(table, "--port");
+if (opt->is_present)
+    printf("User explicitly set port to %d\n", arg_get_int(table, "--port", 0));
 ```
 
 #### Multi-value getters
 
-All three write the element count to `*out_count`.
+All three multi-value getters now accept a **`default_values`** parameter. When the argument is absent, the getter writes `0` to `*out_count` and returns the provided default pointer — no allocation takes place in that case.
 
 ```c
-char **arg_get_multiple_string(arg_table *table, const char *name, int *out_count);
-int   *arg_get_multiple_int   (arg_table *table, const char *name, int *out_count);
-float *arg_get_multiple_float (arg_table *table, const char *name, int *out_count);
+char **arg_get_multiple_string(arg_table *table, const char *name, int *out_count, char **default_values);
+int   *arg_get_multiple_int   (arg_table *table, const char *name, int *out_count, int  *default_values);
+float *arg_get_multiple_float (arg_table *table, const char *name, int *out_count, float *default_values);
 ```
 
-> `arg_get_multiple_int`, `arg_get_multiple_float`, and `arg_get_multiple_string` return a **newly allocated array, you must `free` it** using the provided `free_multiple_ints()`, `free_multiple_floats()`, `free_multiple_strings()` functions. 
+When the argument **is** present, these functions return a **newly allocated array** that you must free using the provided helpers.
+
+**Examples:**
 
 ```c
-int count;
-char **tags = arg_get_multiple_string(table, "--tags", &count);
-for (int i = 0; i < count; i++)
-    printf("Tag %d: %s\n", i + 1, tags[i]);
-free_multiple_strings(tags, count);
+// --- String multiple ---
+int tag_count;
+char **tags = arg_get_multiple_string(table, "--tags", &tag_count, NULL);
+if (tag_count > 0) {
+    for (int i = 0; i < tag_count; i++)
+        printf("Tag %d: %s\n", i + 1, tags[i]);
+    free_multiple_strings(&tags, tag_count);
+}
 
-int *vals = arg_get_multiple_int(table, "--val", &count);
-for (int i = 0; i < count; i++)
-    printf("Val %d: %d\n", i + 1, vals[i]);
-free_multiple_ints(vals);  // required
+// --- Integer multiple ---
+int val_count;
+int *vals = arg_get_multiple_int(table, "--val", &val_count, NULL);
+if (val_count > 0) {
+    for (int i = 0; i < val_count; i++)
+        printf("Val %d: %d\n", i + 1, vals[i]);
+    free_multiple_ints(&vals);
+}
+
+// --- Float multiple with a static default ---
+float fallback[] = {1.0f, 2.0f};
+int weight_count;
+float *weights = arg_get_multiple_float(table, "--weights", &weight_count, fallback);
+// If --weights was not given: weight_count == 0, weights == fallback (do NOT free)
+// If --weights was given:     weight_count >  0, weights is heap-allocated (MUST free)
+if (weight_count > 0)
+    free_multiple_floats(&weights);
+```
+
+> **Important:** Only free the returned pointer when `out_count > 0`. When the argument is absent the returned pointer is your own `default_values` — freeing it is your responsibility under your own rules, not the parser's.
+
+---
+
+### Memory Management and Dangling Pointer Prevention
+
+All `free_*` helpers now take a **pointer-to-pointer** and set the inner pointer to `NULL` after freeing. This prevents use-after-free bugs from stale pointers.
+
+```c
+void free_argument_table  (arg_table ***table);          // sets *table   = NULL
+void free_multiple_ints   (int       **ints);            // sets *ints    = NULL
+void free_multiple_floats (float     **floats);          // sets *floats  = NULL
+void free_multiple_strings(char      ***strings, int count); // sets *strings = NULL
+```
+
+**Before (old behaviour):** After calling free, the original pointer still pointed to freed memory — a silent dangling pointer.
+
+**After (new behaviour):** The pointer is zeroed immediately after the free, so any subsequent accidental dereference will segfault loudly rather than producing undefined behaviour silently.
+
+```c
+// Correct usage — pass the address of your pointer
+free_argument_table(&table);     // table  is now NULL
+free_multiple_ints(&vals);       // vals   is now NULL
+free_multiple_floats(&weights);  // weights is now NULL
+free_multiple_strings(&tags, tag_count); // tags is now NULL
 ```
 
 ---
@@ -320,7 +363,7 @@ All errors print to `stderr` and exit with a failure code. There is no error-ret
 | Non-numeric value for integer flag | `An Error Occurred While Parsing Arguments: Invalid integer value: 'not_a_number'` |
 | Non-numeric value for float flag | `An Error Occurred While Parsing Arguments: Invalid float value: 'not_a_float'` |
 | Integer exceeds `INT_MAX`/`INT_MIN` | `An Error Occurred While Parsing Arguments: Invalid integer value(Bound Exceeded): '999999999999'` |
-| MULTIPLE flag with no following values | `An Error Occurred While Parsing Arguments: Expected at least one value after '-t'` |
+| `MULTIPLE` flag with no following values | `An Error Occurred While Parsing Arguments: Expected at least one value after '-t'` |
 | Required argument missing | `Argument Parser PANIC: Required argument '...' was not provided.` |
 | Internal error (null pointer, malloc fail) | `Argument Parser PANIC: ...` |
 
@@ -338,17 +381,16 @@ A test script is included. Compile `test.c` first, then run:
 ./test.sh --fail
 ```
 
-The happy-path run exercises strings, integers, floats, booleans, multi-value flags, and mixed combinations. The `--fail` run covers invalid integers, invalid floats, missing multi-values, unknown flags, and integer overflow — all of which should exit with a clear error message.
+The happy-path run exercises strings, integers, floats, booleans, multi-value flags, default values, and mixed combinations. The `--fail` run covers invalid integers, invalid floats, missing multi-values, unknown flags, and integer overflow — all of which should exit with a clear error message.
 
 ---
 
 ## Limitations and Design Choices
 
-- **`--flag=value` syntax Omitted.** Space-separated form only. Single Syntax Design Choice
-- **No combined short flags.** `-vp 9000` is not supported; use `-v -p 9000`. Single Syntax Design Choice
-- **No built-in defaults.** Intentional design decision to let the user to check `->is_present` and apply defaults to their own code as they see fit. 
-- **No positional arguments.** Every value must be preceded by its flag. Design choice to embrace Explicitness
-- **No subcommands.** All flags are flat; there is no `git commit`-style dispatch yet.
-- **`BOOLEAN | MULTIPLE` is Not Allowed.**
+- **`--flag=value` syntax omitted.** Space-separated form only. Single Syntax Design Choice.
+- **No combined short flags.** `-vp 9000` is not supported; use `-v -p 9000`. Single Syntax Design Choice.
+- **No positional arguments.** Every value must be preceded by its flag. Embraces explicitness.
+- **No subcommands.** All flags are flat; there is no `git commit`-style dispatch.
+- **`BOOLEAN | MULTIPLE` is not allowed.**
 - **No thread safety.** Update from a single thread only, preferably the one with `main()`.
-- **ANSI escape codes are always emitted as of now.** Redirecting help output to a file will include raw colour sequences.
+- **ANSI escape codes are always emitted.** Redirecting help output to a file will include raw colour sequences.
