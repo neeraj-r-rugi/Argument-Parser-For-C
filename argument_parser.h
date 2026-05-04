@@ -283,11 +283,11 @@ void print_help(arg_table *table, const char *program_name) {
 
         // modifiers
         #ifndef ARGUMENT_PARSER_NO_COLOR_HELP
-        printf("  %s", (arg->argument_type & ARGUMENT_TYPE_REQUIRED) ? "\033[1;31m[required]\033[0m" : "[optional]");
-        printf("  %s", (arg->argument_type & ARGUMENT_TYPE_MULTIPLE) ? "[multiple]" : "          ");
+            printf("  %s", (arg->argument_type & ARGUMENT_TYPE_REQUIRED) ? "\033[1;31m[required]\033[0m" : "[optional]");
+            printf("  %s", (arg->argument_type & ARGUMENT_TYPE_MULTIPLE) ? "[multiple]" : "          ");
         #elif
-        printf("  %s", (arg->argument_type & ARGUMENT_TYPE_REQUIRED) ? "[required]" : "[optional]");
-        printf("  %s", (arg->argument_type & ARGUMENT_TYPE_MULTIPLE) ? "[multiple]" : "          ");
+            printf("  %s", (arg->argument_type & ARGUMENT_TYPE_REQUIRED) ? "[required]" : "[optional]");
+            printf("  %s", (arg->argument_type & ARGUMENT_TYPE_MULTIPLE) ? "[multiple]" : "          ");
         #endif
 
         // help text
@@ -300,10 +300,17 @@ void print_help(arg_table *table, const char *program_name) {
 void argument_parser_error(const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
-    fprintf(stderr, "\033[1;31mAn Error Occurred While Parsing Arguments:\033[0m ");
-    vfprintf(stderr, fmt, args);
-    fprintf(stderr, "\n");
+    #ifndef ARGUMENT_PARSER_NO_COLOR_ERROR
+        fprintf(stderr, "\033[1;31mAn Error Occurred While Parsing Arguments:\033[0m ");
+        vfprintf(stderr, fmt, args);
+        fprintf(stderr, "\n");
+    #elif
+        fprintf(stderr, "An Error Occurred While Parsing Arguments: ");
+        vfprintf(stderr, fmt, args);
+        fprintf(stderr, "\n");
+    #endif
     va_end(args);
+
     #ifdef ARGUMENT_PARSER_EXIT_ON_ERROR
     exit(EXIT_FAILURE);
     #endif
@@ -313,9 +320,15 @@ void argument_parser_error(const char *fmt, ...) {
 void argument_parser_panic(const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
-    fprintf(stderr, "\033[1;31mArgument Parser PANIC:\033[0m ");
-    vfprintf(stderr, fmt, args);
-    fprintf(stderr, "\n");
+    #ifndef ARGUMENT_PARSER_NO_COLOR_ERROR
+        fprintf(stderr, "\033[1;31mArgument Parser PANIC:\033[0m ");
+        vfprintf(stderr, fmt, args);
+        fprintf(stderr, "\n");
+    #elif
+        fprintf(stderr, "Argument Parser PANIC: ");
+        vfprintf(stderr, fmt, args);
+        fprintf(stderr, "\n");
+    #endif
     va_end(args);
     exit(EXIT_FAILURE);
 }
