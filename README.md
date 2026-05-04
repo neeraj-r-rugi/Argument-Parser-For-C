@@ -223,7 +223,7 @@ Frees all memory allocated by the parser and sets the pointer to `NULL`, prevent
 
 #### Single-value getters
 
-All single-value getters now accept a **`default_value`** parameter. If the argument was not supplied on the command line, the default is returned directly — no manual `is_present` check required.
+All single-value getters now accept a **`default_value`** parameter. If the argument was not supplied on the command line, the default is returned directly. No manual `is_present` check required.
 
 ```c
 char  *arg_get_string(arg_table *table, const char *name, const char *default_value);
@@ -262,7 +262,7 @@ if (opt->is_present)
 
 #### Multi-value getters
 
-All three multi-value getters now accept a **`default_values`** parameter. When the argument is absent, the getter writes `0` to `*out_count` and returns the provided default pointer — no allocation takes place in that case.
+All three multi-value getters now accept a **`default_values`** parameter. When the argument is absent, the getter writes `0` to `*out_count` and returns the provided default pointer. No allocation takes place in that case.
 
 ```c
 char **arg_get_multiple_string(arg_table *table, const char *name, int *out_count, char **default_values);
@@ -317,10 +317,7 @@ void free_multiple_ints   (int       **ints);            // sets *ints    = NULL
 void free_multiple_floats (float     **floats);          // sets *floats  = NULL
 void free_multiple_strings(char      ***strings, int count); // sets *strings = NULL
 ```
-
-**Before (old behaviour):** After calling free, the original pointer still pointed to freed memory — a silent dangling pointer.
-
-**After (new behaviour):** The pointer is zeroed immediately after the free, so any subsequent accidental dereference will segfault loudly rather than producing undefined behaviour silently.
+The pointer is zeroed immediately after the free, so any subsequent accidental dereference will segfault loudly rather than producing undefined behaviour silently.
 
 ```c
 // Correct usage — pass the address of your pointer
