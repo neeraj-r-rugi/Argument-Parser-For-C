@@ -1,4 +1,5 @@
 #define LOAD_ARGUMENT_PARSER
+#define ARGUMENT_PARSER_EXIT_ON_ERROR
 #include "argument_parser.h"
 
 int main(int argc, char **argv) {
@@ -11,7 +12,10 @@ int main(int argc, char **argv) {
     add_argument(table, "--timeout", NULL, ARGUMENT_TYPE_FLOAT,                            "Timeout in seconds");
     add_argument(table, "--val",     NULL, ARGUMENT_TYPE_INTEGER | ARGUMENT_TYPE_MULTIPLE, "One or more integer values");
 
-    parse_all_arguments(table, argc, argv);
+    //Error handling can be done by checking the return value of parse_all_arguments and the out_error code, 
+    //but with ARGUMENT_PARSER_EXIT_ON_ERROR defined, 
+    //the parser will exit on error, so we can ignore the return value here.
+    parse_all_arguments(table, argc, argv, NULL);
 
     // Default values are passed directly into the getter — no is_present check needed
     char *host    = arg_get_string(table, "--host", NULL);

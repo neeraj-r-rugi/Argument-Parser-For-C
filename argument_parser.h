@@ -28,14 +28,22 @@
     * the argument parser.
 */
 typedef enum ARGUMENT_TYPE{
-    ARGUMENT_TYPE_STRING = 1 << 0,
-    ARGUMENT_TYPE_INTEGER = 1 << 1,
-    ARGUMENT_TYPE_FLOAT = 1 << 2,
-    ARGUMENT_TYPE_BOOLEAN = 1 << 3,
-    ARGUMENT_TYPE_REQUIRED = 1 << 4,
-    ARGUMENT_TYPE_MULTIPLE = 1 << 5
+    ARGUMENT_TYPE_STRING        = 1 << 0,
+    ARGUMENT_TYPE_INTEGER       = 1 << 1,
+    ARGUMENT_TYPE_FLOAT         = 1 << 2,
+    ARGUMENT_TYPE_BOOLEAN       = 1 << 3,
+    ARGUMENT_TYPE_REQUIRED      = 1 << 4,
+    ARGUMENT_TYPE_MULTIPLE      = 1 << 5
 } arg_type;
 
+
+typedef enum ARGUMENT_PARRSER_ERROR{
+    ARGUMENT_ERROR_NONE                 = 1 << 0,
+    ARGUMENT_ERROR_MULTIPLE_PROVIDED    = 1 << 1,
+    ARGUMENT_ERROR_UNKNOWN_ARGUMENT     = 1 << 2,
+    ARGUMENT_ERROR_MISSING_VALUE        = 1 << 3,
+    ARGUMENT_ERROR_INVALID_TYPE         = 1 << 4
+} arg_error;
 
 /*
     * STRUCTURES:
@@ -62,6 +70,8 @@ typedef struct ARGUMENT_TABLE{
     int user_arguments;
     int required_arguments;
 }arg_table;
+
+
 
 /*
     * CAUTION: This function will terminate the program. Use it only for critical errors in the argument parser.
@@ -118,7 +128,7 @@ void print_help(arg_table * table, const char * program_name);
     * matches them against the defined arguments in the table, and stores their values accordingly. The function also checks for required arguments
     * and handles errors such as unknown arguments or missing values. If the user requests help (e.g., by using --help), it will display the help message and exit. 
 */
-arg_table * parse_all_arguments(arg_table * table, int argc, char ** argv);
+arg_table * parse_all_arguments(arg_table * table, int argc, char ** argv, enum ARGUMENT_PARRSER_ERROR * out_error);
 
 /*
     * Input: Pointer to the argument table and the name of the argument to retrieve
@@ -290,7 +300,9 @@ void argument_parser_error(const char *fmt, ...) {
     vfprintf(stderr, fmt, args);
     fprintf(stderr, "\n");
     va_end(args);
+    #ifdef ARGUMENT_PARSER_EXIT_ON_ERROR
     exit(EXIT_FAILURE);
+    #endif
 }
 
 
@@ -381,7 +393,7 @@ int is_flag(const char *token) {
     return 1;
 }
 
-arg_table *parse_all_arguments(arg_table *table, int argc, char **argv) {
+arg_table *parse_all_arguments(arg_table *table, int argc, char **argv, enum ARGUMENT_PARRSER_ERROR * out_error) {
     if (table == NULL)
         argument_parser_panic("Argument table is not initialized.");
     if (argv == NULL)
@@ -410,6 +422,10 @@ arg_table *parse_all_arguments(arg_table *table, int argc, char **argv) {
             if(arg->is_present) {
                 print_help(table, argv[0]);
                 argument_parser_error("Argument '%s' is provided multiple times.", arg->argument_name_long);
+                if(out_error) {
+                    *out_error = ARGUMENT_ERROR_MULTIPLE_PROVIDED;
+                }
+                return table;
             }
             arg->is_present = 1;
 
@@ -433,8 +449,14 @@ arg_table *parse_all_arguments(arg_table *table, int argc, char **argv) {
                     count++;
                 } 
                     
-                if (count == 0)
+                if (count == 0){
                     argument_parser_error("Expected at least one value after '%s'", current_word);
+                    if(out_error) {
+                        *out_error = ARGUMENT_ERROR_MISSING_VALUE;
+                    }
+                    return table;
+                }
+                    
                 
 
                 arg->multiple_argument_values = malloc(sizeof(void *) * count);
@@ -466,13 +488,26 @@ arg_table *parse_all_arguments(arg_table *table, int argc, char **argv) {
                 current_argument += (end_special_case)? 1 : 0;
 
             } else {
-                if (current_argument + 1 >= argc)
+                if (current_argument + 1 >= argc){
                     argument_parser_error("Expected value after '%s'", current_word);
+                    if(out_error) {
+                        *out_error = ARGUMENT_ERROR_MISSING_VALUE;
+                    }
+                    return table;
+                }
+                    
+
 
                 char *val = argv[++current_argument];
 
-                if (is_flag(val) && !(strcmp(val, "--") == 0))
+                if (is_flag(val) && !(strcmp(val, "--") == 0)){
                     argument_parser_error("Expected value after '%s', got flag '%s'", current_word, val);
+                    if(out_error) {
+                        *out_error = ARGUMENT_ERROR_MISSING_VALUE;
+                    }
+                    return table;
+                }
+                    
                 
                 if((strcmp(val, "--") == 0))
                     val = argv[++current_argument];
@@ -494,6 +529,10 @@ arg_table *parse_all_arguments(arg_table *table, int argc, char **argv) {
 
                 } else {
                     argument_parser_error("Unsupported type for '%s'", current_word);
+                    if(out_error) {
+                        *out_error = ARGUMENT_ERROR_INVALID_TYPE;
+                    }
+                    return table;
                 }
             }
             break;
@@ -502,6 +541,10 @@ arg_table *parse_all_arguments(arg_table *table, int argc, char **argv) {
         if (!matched) {
             print_help(table, argv[0]);
             argument_parser_error("Unknown argument: %s", current_word);
+            if(out_error) {
+                *out_error = ARGUMENT_ERROR_UNKNOWN_ARGUMENT;
+            }
+            return table;
         }
     }
 
@@ -510,6 +553,10 @@ arg_table *parse_all_arguments(arg_table *table, int argc, char **argv) {
         if ((arg->argument_type & ARGUMENT_TYPE_REQUIRED) && !arg->is_present) {
             print_help(table, argv[0]);
             argument_parser_error("Required argument '%s' was not provided.", arg->argument_name_long);
+            if(out_error) {
+                *out_error = ARGUMENT_ERROR_MISSING_VALUE;
+            }
+            return table;
         }
     }
 
@@ -740,17 +787,29 @@ void cast_to_int(const char *val, int *out) {
 
     long temp = strtol(val, &end, 10);
     // Check: no digits were found
-    if (end == val) 
-        argument_parser_error("Invalid integer value: '%s'", val);  
+    if (end == val){
+        argument_parser_error("Invalid integer value: '%s'", val); 
+        exit(EXIT_FAILURE);
+    } 
+         
     // Check: extra characters after number
-    if (*end != '\0')
+    if (*end != '\0'){
         argument_parser_error("Invalid integer value (extra characters): '%s'", val);
+        exit(EXIT_FAILURE);
+    }
+        
     // Check: overflow/underflow from strtol
-    if (errno == ERANGE) 
+    if (errno == ERANGE){
         argument_parser_error("Integer value out of range: '%s'", val);
+        exit(EXIT_FAILURE);
+    }
+        
     // Check: fits in int
-    if (temp < INT_MIN || temp > INT_MAX)
+    if (temp < INT_MIN || temp > INT_MAX){
         argument_parser_error("Invalid integer value(Bound Exceeded): '%s'", val);
+        exit(EXIT_FAILURE);
+    }
+        
     *out = (int)temp;
 }
 
@@ -760,14 +819,23 @@ void cast_to_float(const char *val, float *out) {
     errno = 0;
     float temp = strtof(val, &end);
     // No conversion performed
-    if (end == val)
+    if (end == val){
         argument_parser_error("Invalid float value: '%s'", val);
+        exit(EXIT_FAILURE);
+    }
+        
     // Extra characters after number
-    if (*end != '\0')
+    if (*end != '\0'){
         argument_parser_error("Invalid float value (extra characters): '%s'", val);
+        exit(EXIT_FAILURE);
+    }
+        
     // Overflow / underflow
-    if (errno == ERANGE) 
+    if (errno == ERANGE){
         argument_parser_error("Float value out of range: '%s'", val);
+        exit(EXIT_FAILURE);
+    }
+        
 
     *out = temp;
 }

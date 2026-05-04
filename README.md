@@ -40,6 +40,7 @@ In every other file that only needs the types or function signatures:
 
 ```c
 #define LOAD_ARGUMENT_PARSER
+#define ARGUMENT_PARSER_EXIT_ON_ERROR
 #include "argument_parser.h"
 
 int main(int argc, char **argv) {
@@ -52,7 +53,7 @@ int main(int argc, char **argv) {
     add_argument(table, "--timeout", NULL, ARGUMENT_TYPE_FLOAT,                            "Timeout in seconds");
     add_argument(table, "--val",     NULL, ARGUMENT_TYPE_INTEGER | ARGUMENT_TYPE_MULTIPLE, "One or more integer values");
 
-    parse_all_arguments(table, argc, argv);
+    parse_all_arguments(table, argc, argv, NULL);
 
     // Default values are passed directly into the getter — no is_present check needed
     char *host    = arg_get_string(table, "--host", NULL);
@@ -189,6 +190,112 @@ Host: localhost  Port: 8080  Verbose: 1 Timeout: 30.00
 
 ---
 
+## Error Handling
+
+The parser offers two modes of error handling. The built-in automatic mode is recommended for most use cases.
+
+### Recommended: Automatic exit on error (`ARGUMENT_PARSER_EXIT_ON_ERROR`)
+
+Define `ARGUMENT_PARSER_EXIT_ON_ERROR` before including the header to have the parser automatically print an error message to `stderr` and exit the program on any parsing error. This is the simplest and most common approach.
+
+```c
+#define LOAD_ARGUMENT_PARSER
+#define ARGUMENT_PARSER_EXIT_ON_ERROR   // parser exits automatically on any error
+#include "argument_parser.h"
+
+int main(int argc, char **argv) {
+    arg_table *table = init_argument_parser();
+    // ... add_argument calls ...
+
+    // Pass NULL for out_error — errors are handled automatically
+    parse_all_arguments(table, argc, argv, NULL);
+
+    // Safe to use getters directly — if we reach this line, parsing succeeded
+    char *host = arg_get_string(table, "--host", NULL);
+    // ...
+}
+```
+
+### Manual: Inspecting errors via `out_error`
+
+If `ARGUMENT_PARSER_EXIT_ON_ERROR` is **not** defined, `argument_parser_error()` will print the error message to `stderr` but **return instead of exiting**. You can then inspect the error code written to the `out_error` pointer passed to `parse_all_arguments` and decide how to respond.
+
+```c
+#define LOAD_ARGUMENT_PARSER
+// ARGUMENT_PARSER_EXIT_ON_ERROR is NOT defined
+#include "argument_parser.h"
+
+int main(int argc, char **argv) {
+    arg_table *table = init_argument_parser();
+    // ... add_argument calls ...
+
+    arg_error err = ARGUMENT_ERROR_NONE;
+    parse_all_arguments(table, argc, argv, &err);
+
+    if (err != ARGUMENT_ERROR_NONE) {
+        // Inspect the error code and handle it yourself
+        switch (err) {
+            case ARGUMENT_ERROR_UNKNOWN_ARGUMENT:
+                fprintf(stderr, "Unrecognised flag — check your input.\n");
+                break;
+            case ARGUMENT_ERROR_MISSING_VALUE:
+                fprintf(stderr, "A required value or argument is missing.\n");
+                break;
+            case ARGUMENT_ERROR_MULTIPLE_PROVIDED:
+                fprintf(stderr, "A flag was supplied more than once.\n");
+                break;
+            case ARGUMENT_ERROR_INVALID_TYPE:
+                fprintf(stderr, "A value could not be converted to the expected type.\n");
+                break;
+            default:
+                break;
+        }
+        free_argument_table(&table);
+        return EXIT_FAILURE;
+    }
+
+    // Parsing succeeded — safe to use getters
+    char *host = arg_get_string(table, "--host", NULL);
+    // ...
+}
+```
+
+### `arg_error` codes
+
+| Code | Meaning |
+|---|---|
+| `ARGUMENT_ERROR_NONE` | Parsing completed successfully |
+| `ARGUMENT_ERROR_UNKNOWN_ARGUMENT` | An unregistered flag was encountered |
+| `ARGUMENT_ERROR_MULTIPLE_PROVIDED` | The same flag appeared more than once |
+| `ARGUMENT_ERROR_MISSING_VALUE` | A flag expected a value but none followed, or a required flag was absent |
+| `ARGUMENT_ERROR_INVALID_TYPE` | A value could not be converted to the flag's declared type |
+
+> **Note:** `ARGUMENT_PARSER_EXIT_ON_ERROR` only governs `argument_parser_error()` — recoverable parsing errors. Internal invariant violations (null table, malloc failures, etc.) always call `argument_parser_panic()`, which exits unconditionally regardless of this setting.
+
+### Error messages
+
+All error messages are printed to `stderr`. The two categories are:
+
+| Situation | Prefix |
+|---|---|
+| Recoverable parsing errors (unknown flag, duplicate, bad value, missing required) | `An Error Occurred While Parsing Arguments:` |
+| Internal invariant violations (null pointer, malloc failure) | `Argument Parser PANIC:` |
+
+Full message examples:
+
+| Situation | Error message |
+|---|---|
+| Unknown flag | `An Error Occurred While Parsing Arguments: Unknown argument: --unknown` |
+| Duplicate flag | `An Error Occurred While Parsing Arguments: Argument '...' is provided multiple times.` |
+| Non-numeric value for integer flag | `An Error Occurred While Parsing Arguments: Invalid integer value: 'not_a_number'` |
+| Non-numeric value for float flag | `An Error Occurred While Parsing Arguments: Invalid float value: 'not_a_float'` |
+| Integer exceeds `INT_MAX`/`INT_MIN` | `An Error Occurred While Parsing Arguments: Invalid integer value(Bound Exceeded): '999999999999'` |
+| `MULTIPLE` flag with no following values | `An Error Occurred While Parsing Arguments: Expected at least one value after '-t'` |
+| Required argument missing | `An Error Occurred While Parsing Arguments: Required argument '...' was not provided.` |
+| Internal error (null pointer, malloc fail) | `Argument Parser PANIC: ...` |
+
+---
+
 ## API Reference
 
 ### Setup
@@ -208,9 +315,13 @@ arg_table *add_argument(arg_table *table,
 Registers a flag. Pass `NULL` for `short_name` if no short form is needed.
 
 ```c
-arg_table *parse_all_arguments(arg_table *table, int argc, char **argv);
+arg_table *parse_all_arguments(arg_table *table, int argc, char **argv, arg_error *out_error);
 ```
-Parses the command line. Handles `--help`/`-h`, unknown flags, duplicates, missing values, type errors, and required-argument checks. Exits the program on any error.
+Parses the command line. Handles `--help`/`-h`, unknown flags, duplicates, missing values, type errors, and required-argument checks.
+
+If `ARGUMENT_PARSER_EXIT_ON_ERROR` is defined, the program exits on any error. Otherwise, the error code is written to `*out_error` (if non-NULL) and the function returns early — always check `out_error` in that mode.
+
+Pass `NULL` for `out_error` when using `ARGUMENT_PARSER_EXIT_ON_ERROR`.
 
 ```c
 void free_argument_table(arg_table **table);
@@ -223,7 +334,7 @@ Frees all memory allocated by the parser and sets the pointer to `NULL`, prevent
 
 #### Single-value getters
 
-All single-value getters now accept a **`default_value`** parameter. If the argument was not supplied on the command line, the default is returned directly. No manual `is_present` check required.
+All single-value getters accept a **`default_value`** parameter. If the argument was not supplied on the command line, the default is returned directly. No manual `is_present` check required.
 
 ```c
 char  *arg_get_string(arg_table *table, const char *name, const char *default_value);
@@ -248,7 +359,7 @@ float timeout = arg_get_float(table, "--timeout", 30.0f);
 int verbose = arg_get_bool(table, "--verbose");
 ```
 
-> Passing `NULL` as the default for `arg_get_string` is valid when the flag is `ARGUMENT_TYPE_REQUIRED`, since the parser will have already exited before the getter is reached if the flag is absent.
+> Passing `NULL` as the default for `arg_get_string` is valid when the flag is `ARGUMENT_TYPE_REQUIRED`, since the parser will have already exited (or returned an error) before the getter is reached if the flag is absent.
 
 #### Checking presence explicitly
 
@@ -262,7 +373,7 @@ if (opt->is_present)
 
 #### Multi-value getters
 
-All three multi-value getters now accept a **`default_values`** parameter. When the argument is absent, the getter writes `0` to `*out_count` and returns the provided default pointer. No allocation takes place in that case.
+All three multi-value getters accept a **`default_values`** parameter. When the argument is absent, the getter writes `0` to `*out_count` and returns the provided default pointer. No allocation takes place in that case.
 
 ```c
 char **arg_get_multiple_string(arg_table *table, const char *name, int *out_count, char **default_values);
@@ -309,22 +420,23 @@ if (weight_count > 0)
 
 ### Memory Management and Dangling Pointer Prevention
 
-All `free_*` helpers now take a **pointer-to-pointer** and set the inner pointer to `NULL` after freeing. This prevents use-after-free bugs from stale pointers.
+All `free_*` helpers take a **pointer-to-pointer** and set the inner pointer to `NULL` after freeing. This prevents use-after-free bugs from stale pointers.
 
 ```c
-void free_argument_table  (arg_table ***table);          // sets *table   = NULL
-void free_multiple_ints   (int       **ints);            // sets *ints    = NULL
-void free_multiple_floats (float     **floats);          // sets *floats  = NULL
+void free_argument_table  (arg_table ***table);              // sets *table   = NULL
+void free_multiple_ints   (int       **ints);                // sets *ints    = NULL
+void free_multiple_floats (float     **floats);              // sets *floats  = NULL
 void free_multiple_strings(char      ***strings, int count); // sets *strings = NULL
 ```
+
 The pointer is zeroed immediately after the free, so any subsequent accidental dereference will segfault loudly rather than producing undefined behaviour silently.
 
 ```c
 // Correct usage — pass the address of your pointer
-free_argument_table(&table);     // table  is now NULL
-free_multiple_ints(&vals);       // vals   is now NULL
-free_multiple_floats(&weights);  // weights is now NULL
-free_multiple_strings(&tags, tag_count); // tags is now NULL
+free_argument_table(&table);             // table   is now NULL
+free_multiple_ints(&vals);               // vals    is now NULL
+free_multiple_floats(&weights);          // weights is now NULL
+free_multiple_strings(&tags, tag_count); // tags    is now NULL
 ```
 
 ---
@@ -346,23 +458,6 @@ Options:
 ```
 
 `[required]` is highlighted in bold red on terminals that support ANSI colour codes. Help is also printed automatically before most error exits.
-
----
-
-## Error Handling
-
-All errors print to `stderr` and exit with a failure code. There is no error-return path.
-
-| Situation | Error message |
-|---|---|
-| Unknown flag | `An Error Occurred While Parsing Arguments: Unknown argument: --unknown` |
-| Duplicate flag | `An Error Occurred While Parsing Arguments: Argument '...' is provided multiple times.` |
-| Non-numeric value for integer flag | `An Error Occurred While Parsing Arguments: Invalid integer value: 'not_a_number'` |
-| Non-numeric value for float flag | `An Error Occurred While Parsing Arguments: Invalid float value: 'not_a_float'` |
-| Integer exceeds `INT_MAX`/`INT_MIN` | `An Error Occurred While Parsing Arguments: Invalid integer value(Bound Exceeded): '999999999999'` |
-| `MULTIPLE` flag with no following values | `An Error Occurred While Parsing Arguments: Expected at least one value after '-t'` |
-| Required argument missing | `Argument Parser PANIC: Required argument '...' was not provided.` |
-| Internal error (null pointer, malloc fail) | `Argument Parser PANIC: ...` |
 
 ---
 
