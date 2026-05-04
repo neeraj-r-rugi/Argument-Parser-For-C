@@ -465,6 +465,7 @@ If the output of the program is redirected to a file, then Include `ARGUMENT_PAR
 Use:
 ```C
 #define LOAD_ARGUMENT_PARSER
+#define ARGUMENT_PARSER_EXIT_ON_ERROR
 #define ARGUMENT_PARSER_NO_COLOR_HELP
 //----Source File----
 ```
