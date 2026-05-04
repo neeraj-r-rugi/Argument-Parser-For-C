@@ -214,7 +214,7 @@ void cast_to_float(const char * val, float * out);
     * Description:
     * Frees all memory allocated for the argument table, including the argument options and their values. This function should be called when the argument table is no longer needed to prevent memory leaks.
 */
-void free_argument_table(arg_table * table);
+void free_argument_table(arg_table ** table);
 
 /*
     * CAUTION: This function will free all memory allocated for an array of strings. Use it when the array of strings is no longer needed to prevent memory leaks.
@@ -223,7 +223,7 @@ void free_argument_table(arg_table * table);
     * Description:
     * Frees all memory allocated for an array of strings, including each individual string and the array itself. This function should be called when the array of strings is no longer needed to prevent memory leaks.
 */
-void free_multiple_strings(char ** strings, int count);
+void free_multiple_strings(char *** strings, int count);
 /*
     * CAUTION: This function will free all memory allocated for an array of integers. Use it when the array of integers is no longer needed to prevent memory leaks.
     * Input: An array of integers
@@ -231,7 +231,7 @@ void free_multiple_strings(char ** strings, int count);
     * Description:
     * Frees all memory allocated for an array of integers. This function should be called when the array of integers is no longer needed to prevent memory leaks.
 */
-void free_multiple_ints(int * ints);
+void free_multiple_ints(int ** ints);
 /*
     * CAUTION: This function will free all memory allocated for an array of floats. Use it when the array of floats is no longer needed to prevent memory leaks.
     * Input: An array of floats
@@ -239,7 +239,7 @@ void free_multiple_ints(int * ints);
     * Description:
     * Frees all memory allocated for an array of floats. This function should be called when the array of floats is no longer needed to prevent memory leaks.
 */
-void free_multiple_floats(float * floats);
+void free_multiple_floats(float ** floats);
 
 #endif
 
@@ -682,11 +682,11 @@ char **arg_get_multiple_string(arg_table *table, const char *name, int *out_coun
 }
 
 
-void free_argument_table(arg_table *table) {
-    if (table == NULL) return;
+void free_argument_table(arg_table ** table) {
+    if (*table == NULL) return;
 
-    for (int i = 0; i < table->total_arguments; i++) {
-        arg_opt *arg = table->arguments[i];
+    for (int i = 0; i < (*table)->total_arguments; i++) {
+        arg_opt *arg = (*table)->arguments[i];
         if (arg) {
             free(arg->argument_name_long);
             free(arg->argument_name_short);
@@ -701,26 +701,27 @@ void free_argument_table(arg_table *table) {
             free(arg);
         }
     }
-    free(table->arguments);
-    free(table);
+    free((*table)->arguments);
+    free(*table);
+    *table = NULL;
 }
 
-void free_multiple_ints(int *ints) {
-    if (ints) free(ints);
-    ints = NULL;
+void free_multiple_ints(int ** ints) {
+    if (ints) free(*ints);
+    *ints = NULL;
 }
-void free_multiple_floats(float *floats) {
-    if (floats) free(floats);
-    floats = NULL;
+void free_multiple_floats(float ** floats) {
+    if (floats) free(*floats);
+    *floats = NULL;
 }
 
-void free_multiple_strings(char **strings, int count) {
+void free_multiple_strings(char *** strings, int count) {
     if (strings == NULL) return;
     for (int i = 0; i < count; i++) {
-        if (strings[i]) free(strings[i]);
+        if ((*strings)[i]) free((*strings)[i]);
     }
-    free(strings);
-    strings = NULL;
+    free(*strings);
+    *strings = NULL;
 }   
 
 void cast_to_int(const char *val, int *out) {
