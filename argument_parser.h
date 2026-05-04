@@ -134,7 +134,7 @@ arg_opt * arg_get(arg_table * table, const char * name);
     * Retrieves the value of a string argument from the argument table. It checks if the argument exists, is of the correct type, and has a value before returning it. If any of these conditions are not met, it raises an error.
     * Note: Useful for retrieving string arguments directly with metadata.
     */
-char * arg_get_string(arg_table * table, const char * name);
+char * arg_get_string(arg_table * table, const char * name, const char * default_value);
 /*
     * Input: Pointer to the argument table and the name of the argument to retrieve
     * Output: The integer value of the specified argument
@@ -142,7 +142,7 @@ char * arg_get_string(arg_table * table, const char * name);
     * Retrieves the value of an integer argument from the argument table. It checks if the argument exists, is of the correct type, and has a value before returning it. If any of these
     * conditions are not met, it raises an error.
 */
-int arg_get_int(arg_table * table, const char * name);
+int arg_get_int(arg_table * table, const char * name, int default_value);
 /*
     * Input: Pointer to the argument table and the name of the argument to retrieve
     * Output: The float value of the specified argument
@@ -150,7 +150,7 @@ int arg_get_int(arg_table * table, const char * name);
     * Retrieves the value of a float argument from the argument table. It checks if the argument
     * exists, is of the correct type, and has a value before returning it. If any of these conditions are not met, it raises an error.
 */
-float arg_get_float(arg_table * table, const char * name);
+float arg_get_float(arg_table * table, const char * name, float default_value);
 /*
     * Input: Pointer to the argument table and the name of the argument to retrieve
     * Output: The boolean value of the specified argument (1 for true, 0 for
@@ -174,7 +174,7 @@ void ** arg_get_multiple(arg_table * table, const char * name, int * out_count);
     * Retrieves the values of a multiple integer argument from the argument table. It checks if the
     * argument exists, is of the correct type, and has values before returning them. The function also fills the provided integer pointer with the count of values. If any of these conditions are not met, it raises an error.
 */
-int * arg_get_multiple_int(arg_table * table, const char * name, int * out_count);
+int * arg_get_multiple_int(arg_table * table, const char * name, int * out_count, int * default_values);
 /*
     * Input: Pointer to the argument table, the name of the argument to retrieve, and a pointer to an integer to store the count of values
     * Output: An array of floats corresponding to the values of the specified multiple float argument
@@ -182,7 +182,7 @@ int * arg_get_multiple_int(arg_table * table, const char * name, int * out_count
     * Retrieves the values of a multiple float argument from the argument table. It checks if the
     * argument exists, is of the correct type, and has values before returning them. The function also fills the provided integer pointer with the count of values. If any of these conditions are not met, it raises an error.
 */
-float * arg_get_multiple_float(arg_table * table, const char * name, int * out_count);
+float * arg_get_multiple_float(arg_table * table, const char * name, int * out_count, float * default_values);
 /*
     * Input: Pointer to the argument table, the name of the argument to retrieve, and a pointer to an integer to store the count of values
     * Output: An array of strings corresponding to the values of the specified multiple string argument
@@ -190,7 +190,7 @@ float * arg_get_multiple_float(arg_table * table, const char * name, int * out_c
     * Retrieves the values of a multiple string argument from the argument table. It checks if the argument exists, is of the correct type, and has values before returning them. The function also fills
     * the provided integer pointer with the count of values. If any of these conditions are not met, it raises an error.
 */
-char ** arg_get_multiple_string(arg_table * table, const char * name, int * out_count);
+char ** arg_get_multiple_string(arg_table * table, const char * name, int * out_count, char ** default_values);
 
 /*
     * Input: A string value to convert and a pointer to an integer to store the result
@@ -533,39 +533,40 @@ arg_opt *arg_get(arg_table *table, const char *name) {
     return NULL;
 }
 
-char *arg_get_string(arg_table *table, const char *name) {
+char *arg_get_string(arg_table *table, const char *name, const char *default_value) {
     arg_opt *arg = arg_get(table, name);
+
 
     if (!(arg->argument_type & ARGUMENT_TYPE_STRING))
         argument_parser_panic("arg_get_string: argument '%s' is not of type STRING.", name);
     if (!arg->is_present)
-        argument_parser_panic("arg_get_string: argument '%s' was not provided.", name);
+        return (char *)default_value;
     if (arg->argument_value == NULL)
         argument_parser_panic("arg_get_string: argument '%s' has no value.", name);
-
+    
     return (char *)arg->argument_value;
 }
 
-int arg_get_int(arg_table *table, const char *name) {
+int arg_get_int(arg_table *table, const char *name, int default_value) {
     arg_opt *arg = arg_get(table, name);
 
     if (!(arg->argument_type & ARGUMENT_TYPE_INTEGER))
         argument_parser_panic("arg_get_int: argument '%s' is not of type INTEGER.", name);
     if (!arg->is_present)
-        argument_parser_panic("arg_get_int: argument '%s' was not provided.", name);
+        return default_value;
     if (arg->argument_value == NULL)
         argument_parser_panic("arg_get_int: argument '%s' has no value.", name);
 
     return *(int *)arg->argument_value;
 }
 
-float arg_get_float(arg_table *table, const char *name) {
+float arg_get_float(arg_table *table, const char *name, float default_value) {
     arg_opt *arg = arg_get(table, name);
 
     if (!(arg->argument_type & ARGUMENT_TYPE_FLOAT))
         argument_parser_panic("arg_get_float: argument '%s' is not of type FLOAT.", name);
     if (!arg->is_present)
-        argument_parser_panic("arg_get_float: argument '%s' was not provided.", name);
+        return default_value;
     if (arg->argument_value == NULL)
         argument_parser_panic("arg_get_float: argument '%s' has no value.", name);
 
@@ -603,15 +604,18 @@ void **arg_get_multiple(arg_table *table, const char *name, int *out_count) {
     return arg->multiple_argument_values;
 }
 
-int *arg_get_multiple_int(arg_table *table, const char *name, int *out_count) {
+int *arg_get_multiple_int(arg_table *table, const char *name, int *out_count, int * default_values) {
     arg_opt *arg = arg_get(table, name);
 
     if (!(arg->argument_type & ARGUMENT_TYPE_MULTIPLE))
         argument_parser_panic("arg_get_multiple_int: argument '%s' is not MULTIPLE.", name);
     if (!(arg->argument_type & ARGUMENT_TYPE_INTEGER))
         argument_parser_panic("arg_get_multiple_int: argument '%s' is not of type INTEGER.", name);
-    if (!arg->is_present)
-        argument_parser_panic("arg_get_multiple_int: argument '%s' was not provided.", name);
+    if (!arg->is_present){
+        *out_count = 0;
+        return default_values;
+    }
+        
     if (arg->multiple_argument_values == NULL)
         argument_parser_panic("arg_get_multiple_int: argument '%s' has no values.", name);
 
@@ -629,15 +633,18 @@ int *arg_get_multiple_int(arg_table *table, const char *name, int *out_count) {
     return result;
 }
 
-float *arg_get_multiple_float(arg_table *table, const char *name, int *out_count) {
+float *arg_get_multiple_float(arg_table *table, const char *name, int *out_count, float * default_values) {
     arg_opt *arg = arg_get(table, name);
 
     if (!(arg->argument_type & ARGUMENT_TYPE_MULTIPLE))
         argument_parser_panic("arg_get_multiple_float: argument '%s' is not MULTIPLE.", name);
     if (!(arg->argument_type & ARGUMENT_TYPE_FLOAT))
         argument_parser_panic("arg_get_multiple_float: argument '%s' is not of type FLOAT.", name);
-    if (!arg->is_present)
-        argument_parser_panic("arg_get_multiple_float: argument '%s' was not provided.", name);
+    if (!arg->is_present){
+        *out_count = 0;
+        return default_values;
+    }
+        
     if (arg->multiple_argument_values == NULL)
         argument_parser_panic("arg_get_multiple_float: argument '%s' has no values.", name);
 
@@ -654,15 +661,18 @@ float *arg_get_multiple_float(arg_table *table, const char *name, int *out_count
     return result;
 }
 
-char **arg_get_multiple_string(arg_table *table, const char *name, int *out_count) {
+char **arg_get_multiple_string(arg_table *table, const char *name, int *out_count, char ** default_values) {
     arg_opt *arg = arg_get(table, name);
 
     if (!(arg->argument_type & ARGUMENT_TYPE_MULTIPLE))
         argument_parser_panic("arg_get_multiple_string: argument '%s' is not MULTIPLE.", name);
     if (!(arg->argument_type & ARGUMENT_TYPE_STRING))
         argument_parser_panic("arg_get_multiple_string: argument '%s' is not of type STRING.", name);
-    if (!arg->is_present)
-        argument_parser_panic("arg_get_multiple_string: argument '%s' was not provided.", name);
+    if (!arg->is_present){
+        *out_count = 0;
+        return default_values;
+    }
+        
     if (arg->multiple_argument_values == NULL)
         argument_parser_panic("arg_get_multiple_string: argument '%s' has no values.", name);
 

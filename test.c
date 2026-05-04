@@ -13,34 +13,32 @@ int main(int argc, char **argv) {
 
     parse_all_arguments(table, argc, argv);
 
-    char *host    = arg_get_string(table, "--host");
+    char *host    = arg_get_string(table, "--host", NULL);
     int   verbose = arg_get_bool(table,   "--verbose");
 
-    int port = 8080;
-    if (arg_get(table, "--port")->is_present)
-        port = arg_get_int(table, "--port");
+    int port = arg_get_int(table, "--port", 8080); // default port is 8080 if not provided
 
     int tag_count;
     char **tags = NULL;
-    if (arg_get(table, "--tags")->is_present){
-        tags = arg_get_multiple_string(table, "--tags", &tag_count);
+    tags = arg_get_multiple_string(table, "--tags", &tag_count, NULL);
+    if(tag_count > 0) {
+        printf("Tags:\n");
         for(int i = 0; i < tag_count; i++) {
-            printf("Tag %d: %s\n", i + 1, tags[i]);
+            printf(" - %s\n", tags[i]);
         }
         free_multiple_strings(&tags, tag_count); // Free the allocated array for string values
     }
-    if (arg_get(table, "--val")->is_present) {
-        int val_count;
-        int *vals = arg_get_multiple_int(table, "--val", &val_count);
+    int val_count;
+    int * vals = arg_get_multiple_int(table, "--val", &val_count, NULL);
+    if(val_count > 0) {
+        printf("Values:\n");
         for(int i = 0; i < val_count; i++) {
-            printf("Val %d: %d\n", i + 1, vals[i]);
+            printf(" - %d\n", vals[i]);
         }
-        free_multiple_ints(&vals); // Free the allocated array for integer values
+        free_multiple_ints(&vals); // Free the allocated array for int values
     }
 
-    float timeout = 0.0f;
-    if (arg_get(table, "--timeout")->is_present)
-        timeout = arg_get_float(table, "--timeout");
+    float timeout = arg_get_float(table, "--timeout", 30.0f); // default timeout is 30 seconds if not provided
     printf("Host: %s  Port: %d  Verbose: %d Timeout: %.2f\n", host, port, verbose, timeout);
     free_argument_table(&table);
     return 0;
