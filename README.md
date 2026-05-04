@@ -459,6 +459,16 @@ Options:
 
 `[required]` is highlighted in bold red on terminals that support ANSI colour codes. Help is also printed automatically before most error exits.
 
+### Printing to a File
+If the output of the program is redirected to a file, then Include `ARGUMENT_PARSER_NO_COLOR_HELP` definition at the top of the source file. As without it, **ANSI escape codes are always emitted.** Redirecting help output to a file will include raw colour sequences.
+
+Use:
+```C
+#define LOAD_ARGUMENT_PARSER
+#define ARGUMENT_PARSER_NO_COLOR_HELP
+//----Source File----
+```
+
 ---
 
 ## Running the Tests
@@ -479,10 +489,9 @@ The happy-path run exercises strings, integers, floats, booleans, multi-value fl
 
 ## Limitations and Design Choices
 
-- **`--flag=value` syntax omitted.** Space-separated form only. Single Syntax Design Choice.
-- **No combined short flags.** `-vp 9000` is not supported; use `-v -p 9000`. Single Syntax Design Choice.
-- **No positional arguments.** Every value must be preceded by its flag. Embraces explicitness.
-- **No subcommands.** All flags are flat; there is no `git commit`-style dispatch.
+- **`--flag=value` syntax omitted.** Space-separated form only. 
+- **No combined short flags.** `-vp 9000` is not supported; use `-v -p 9000`. 
+- **No positional arguments.** Every value must be preceded by its flag. Similar to unix tools like `uname`
+- **No subcommands support yet.** All flags are flat; there is no `git commit`-style dispatch. But can be implemented using flags and provided APIs.
 - **`BOOLEAN | MULTIPLE` is not allowed.**
-- **No thread safety.** Update from a single thread only, preferably the one with `main()`.
-- **ANSI escape codes are always emitted.** Redirecting help output to a file will include raw colour sequences.
+- **No thread safety.** Update from a single thread only, or ensure all updates to table occur in a lock-held crtical section, preferably the one with `main()`.

@@ -267,7 +267,6 @@ void free_multiple_floats(float ** floats);
 void print_help(arg_table *table, const char *program_name) {
     printf("\nUsage: %s [options]\n\n", program_name);
     printf("Options:\n");
-
     for (int i = 0; i < table->total_arguments; i++) {
         arg_opt *arg = table->arguments[i];
 
@@ -283,8 +282,13 @@ void print_help(arg_table *table, const char *program_name) {
         else if (arg->argument_type & ARGUMENT_TYPE_BOOLEAN) printf("  %-10s", "<bool>");
 
         // modifiers
+        #ifndef ARGUMENT_PARSER_NO_COLOR_HELP
         printf("  %s", (arg->argument_type & ARGUMENT_TYPE_REQUIRED) ? "\033[1;31m[required]\033[0m" : "[optional]");
         printf("  %s", (arg->argument_type & ARGUMENT_TYPE_MULTIPLE) ? "[multiple]" : "          ");
+        #elif
+        printf("  %s", (arg->argument_type & ARGUMENT_TYPE_REQUIRED) ? "[required]" : "[optional]");
+        printf("  %s", (arg->argument_type & ARGUMENT_TYPE_MULTIPLE) ? "[multiple]" : "          ");
+        #endif
 
         // help text
         printf("  %s\n", arg->help_text ? arg->help_text : "");
