@@ -42,6 +42,7 @@ int main(int argc, char **argv) {
     }
 
     printf("Host: %s  Port: %d  Verbose: %d  Timeout: %.2f\n", host, port, verbose, timeout);
+    free_single_string(&host);
     free_argument_table(&table);
     return 0;
 }

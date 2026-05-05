@@ -172,13 +172,6 @@ float arg_get_float(arg_table * table, const char * name, float default_value);
 int arg_get_bool(arg_table * table, const char * name);
 /*
     * Input: Pointer to the argument table, the name of the argument to retrieve, and a pointer to an integer to store the count of values
-    * Output: An array of pointers to the values of the specified multiple argument
-    * Description:
-    * Retrieves the values of a multiple argument from the argument table. It checks if the argument exists, is of the correct type, and has values before returning them. The function also fills the provided integer pointer with the count of values. If any of these conditions are not met, it raises an error.
-*/
-void ** arg_get_multiple(arg_table * table, const char * name, int * out_count);
-/*
-    * Input: Pointer to the argument table, the name of the argument to retrieve, and a pointer to an integer to store the count of values
     * Output: An array of integers corresponding to the values of the specified multiple integer argument
     * Description:
     * Retrieves the values of a multiple integer argument from the argument table. It checks if the
@@ -666,22 +659,6 @@ int arg_get_bool(arg_table *table, const char *name) {
 }
 
 // --- multiple getters ---
-
-void **arg_get_multiple(arg_table *table, const char *name, int *out_count) {
-    arg_opt *arg = arg_get(table, name);
-
-    if (!(arg->argument_type & ARGUMENT_TYPE_MULTIPLE))
-        argument_parser_panic("arg_get_multiple: argument '%s' is not of type MULTIPLE.", name);
-    if (!arg->is_present)
-        argument_parser_panic("arg_get_multiple: argument '%s' was not provided.", name);
-    if (arg->multiple_argument_values == NULL)
-        argument_parser_panic("arg_get_multiple: argument '%s' has no values.", name);
-
-    if (out_count != NULL)
-        *out_count = arg->argument_count;
-
-    return arg->multiple_argument_values;
-}
 
 int *arg_get_multiple_int(arg_table *table, const char *name, int *out_count, int * default_values) {
     arg_opt *arg = arg_get(table, name);
