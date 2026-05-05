@@ -609,8 +609,15 @@ char *arg_get_string(arg_table *table, const char *name, const char *default_val
 
     if (!(arg->argument_type & ARGUMENT_TYPE_STRING))
         argument_parser_panic("arg_get_string: argument '%s' is not of type STRING.", name);
-    if (!arg->is_present)
-        return (char *)default_value;
+    if (!arg->is_present){
+        if (default_value == NULL)
+            argument_parser_panic("arg_get_string: argument '%s' is not present and no default value provided.", name);
+        char * str_val = strdup(default_value);
+        if (!str_val)
+            argument_parser_panic("arg_get_string: strdup failed for default value of argument '%s'.", name);
+        return str_val;
+    }
+        
     if (arg->argument_value == NULL)
         argument_parser_panic("arg_get_string: argument '%s' has no value.", name);
     char * str_val = strdup((char *)arg->argument_value);

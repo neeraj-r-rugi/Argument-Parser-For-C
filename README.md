@@ -361,6 +361,7 @@ int verbose = arg_get_bool(table, "--verbose");
 
 > Passing `NULL` as the default for `arg_get_string` is valid when the flag is `ARGUMENT_TYPE_REQUIRED`, since the parser will have already exited (or returned an error) before the getter is reached if the flag is absent.
 
+>`char  *arg_get_string(arg_table *table, const char *name, const char *default_value);` returns a newly allocated array everytime, even in the default case to maintain design simplicity, and must always be freed after use using `free_single_string()` 
 #### Checking presence explicitly
 
 If you need to distinguish between "not provided" and "provided with a value equal to the default", use `arg_get` and check `->is_present`:
@@ -427,6 +428,7 @@ void free_argument_table  (arg_table ***table);              // sets *table   = 
 void free_multiple_ints   (int       **ints);                // sets *ints    = NULL
 void free_multiple_floats (float     **floats);              // sets *floats  = NULL
 void free_multiple_strings(char      ***strings, int count); // sets *strings = NULL
+void free_single_string(char ** str);
 ```
 
 The pointer is zeroed immediately after the free, so any subsequent accidental dereference will segfault loudly rather than producing undefined behaviour silently.
