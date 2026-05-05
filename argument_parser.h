@@ -458,11 +458,16 @@ arg_table *parse_all_arguments(arg_table *table, int argc, char **argv, enum ARG
                 int is_special_case = 0;
                 int end_special_case = 0;
                 if(!(start >= argc) && (strcmp(argv[start], "--") == 0)) {start++;is_special_case = 1;}
-                while (start + count < argc && (!is_flag(argv[start + count]) || is_special_case && !end_special_case)) {
-                    if(strcmp(argv[start + count], "--") == 0){
+
+                while (start + count < argc && is_special_case) {
+                    if(strcmp(argv[start + count], "--") == 0) {
                         end_special_case = 1;
-                        continue;
+                        break;
                     }
+                    count++;
+                }
+
+                while (start + count < argc && (!is_flag(argv[start + count]) && !is_special_case)){
                     count++;
                 } 
                     

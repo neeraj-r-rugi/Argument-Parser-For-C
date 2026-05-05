@@ -19,7 +19,9 @@ echo "-----------------------------"
 echo "-----------------------------"
 ./test -H "localhost" -t -- -tag1 -tag2 -tag3 -- --verbose
 echo "-----------------------------"
-./test -H "localhost" -t "tag 9" "tag 11" "tag 13" --timeout 3.5 --verbose -p 6007 --val 10 20 30
+./test -H "localhost" --timeout 40.0 -t -- -tag1 -tag2 -tag3 -tag4 -tag5 -tag6 
+echo "-----------------------------"
+./test -H "localhost" -t "tag 9" "tag 11" "tag 13" --timeout -3.5 --verbose -p 6007 --val 10 20 30
 echo "-----------------------------"
 ./test --help
 fi
