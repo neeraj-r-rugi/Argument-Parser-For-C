@@ -37,12 +37,12 @@ typedef enum ARGUMENT_TYPE{
 } arg_type;
 
 
-typedef enum ARGUMENT_PARRSER_ERROR{
-    ARGUMENT_ERROR_NONE                 = 1 << 0,
-    ARGUMENT_ERROR_MULTIPLE_PROVIDED    = 1 << 1,
-    ARGUMENT_ERROR_UNKNOWN_ARGUMENT     = 1 << 2,
-    ARGUMENT_ERROR_MISSING_VALUE        = 1 << 3,
-    ARGUMENT_ERROR_INVALID_TYPE         = 1 << 4
+typedef enum ARGUMENT_PARSER_ERROR{
+    ARGUMENT_ERROR_NONE                 =      0,
+    ARGUMENT_ERROR_MULTIPLE_PROVIDED    = 1 << 0,
+    ARGUMENT_ERROR_UNKNOWN_ARGUMENT     = 1 << 1,
+    ARGUMENT_ERROR_MISSING_VALUE        = 1 << 2,
+    ARGUMENT_ERROR_INVALID_TYPE         = 1 << 3
 } arg_error;
 
 /*
@@ -128,7 +128,7 @@ void print_help(arg_table * table, const char * program_name);
     * matches them against the defined arguments in the table, and stores their values accordingly. The function also checks for required arguments
     * and handles errors such as unknown arguments or missing values. If the user requests help (e.g., by using --help), it will display the help message and exit. 
 */
-arg_table * parse_all_arguments(arg_table * table, int argc, char ** argv, enum ARGUMENT_PARRSER_ERROR * out_error);
+arg_table * parse_all_arguments(arg_table * table, int argc, char ** argv, enum ARGUMENT_PARSER_ERROR * out_error);
 
 /*
     * Input: Pointer to the argument table and the name of the argument to retrieve
@@ -250,7 +250,14 @@ void free_multiple_ints(int ** ints);
     * Frees all memory allocated for an array of floats. This function should be called when the array of floats is no longer needed to prevent memory leaks.
 */
 void free_multiple_floats(float ** floats);
-
+/*
+    * CAUTION: This function will free the memory allocated for a single string. Use it when the string is no longer needed to prevent memory leaks.
+    * Input: A pointer to a string
+    * Output: None (the function will free the allocated memory for the string)
+    * Description:
+    * Frees the memory allocated for a single string. This function should be called when the string is no longer needed to prevent memory leaks.
+*/
+void free_single_string(char ** str);
 #endif
 
 
@@ -366,9 +373,10 @@ arg_table *add_argument(arg_table *table, const char *verbose_name, const char *
     }
     for (int i = 0; i < table->total_arguments; i++) {
         arg_opt *arg = table->arguments[i];
-        if ((strcmp(arg->argument_name_long, verbose_name) == 0 ||
-            strcmp(arg->argument_name_short, short_name) == 0) && strcmp(short_name, "") != 0)
-            argument_parser_panic("Argument name '%s' or short name '%s' is already in use.", verbose_name, short_name);
+        if(strcmp(arg->argument_name_long, verbose_name) == 0)
+            argument_parser_panic("Argument long name '%s' is already defined.", verbose_name);
+        if(strcmp(arg->argument_name_short, short_name) == 0 && strcmp(short_name, "") != 0)
+            argument_parser_panic("Argument short name '%s' is already defined.", short_name);
     }
 
     int new_count = table->total_arguments + 1;
@@ -410,7 +418,7 @@ int is_flag(const char *token) {
     return 1;
 }
 
-arg_table *parse_all_arguments(arg_table *table, int argc, char **argv, enum ARGUMENT_PARRSER_ERROR * out_error) {
+arg_table *parse_all_arguments(arg_table *table, int argc, char **argv, enum ARGUMENT_PARSER_ERROR * out_error) {
     if (table == NULL)
         argument_parser_panic("Argument table is not initialized.");
     if (argv == NULL)
@@ -612,8 +620,10 @@ char *arg_get_string(arg_table *table, const char *name, const char *default_val
         return (char *)default_value;
     if (arg->argument_value == NULL)
         argument_parser_panic("arg_get_string: argument '%s' has no value.", name);
-    
-    return (char *)arg->argument_value;
+    char * str_val = strdup((char *)arg->argument_value);
+    if (!str_val)
+        argument_parser_panic("arg_get_string: strdup failed for argument '%s'.", name);
+    return str_val;
 }
 
 int arg_get_int(arg_table *table, const char *name, int default_value) {
@@ -794,6 +804,11 @@ void free_multiple_floats(float ** floats) {
     *floats = NULL;
 }
 
+void free_single_string(char ** str) {
+    if (str == NULL) return;
+    if (*str) free(*str);
+    *str = NULL;
+}
 void free_multiple_strings(char *** strings, int count) {
     if (strings == NULL) return;
     for (int i = 0; i < count; i++) {
