@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
         printf("Tags:\n");
         for (int i = 0; i < tag_count; i++)
             printf(" - %s\n", tags[i]);
-        free_multiple_strings(&tags, tag_count);
+        
     }
 
     int val_count;
@@ -38,11 +38,15 @@ int main(int argc, char **argv) {
         printf("Values:\n");
         for (int i = 0; i < val_count; i++)
             printf(" - %d\n", vals[i]);
-        free_multiple_ints(&vals);
+        
     }
 
     printf("Host: %s  Port: %d  Verbose: %d  Timeout: %.2f\n", host, port, verbose, timeout);
-    free_single_string(&host);
-    free_argument_table(&table);
+    #ifndef LEAK_MEMORY
+        free_multiple_strings(&tags, tag_count);
+        free_single_string(&host);
+        free_multiple_ints(&vals);
+        free_argument_table(&table);
+    #endif
     return 0;
 }
