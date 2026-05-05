@@ -53,6 +53,9 @@ int main(int argc, char **argv) {
     add_argument(table, "--timeout", NULL, ARGUMENT_TYPE_FLOAT,                            "Timeout in seconds");
     add_argument(table, "--val",     NULL, ARGUMENT_TYPE_INTEGER | ARGUMENT_TYPE_MULTIPLE, "One or more integer values");
 
+    //Error handling can be done by checking the return value of parse_all_arguments and the out_error code, 
+    //but with ARGUMENT_PARSER_EXIT_ON_ERROR defined, 
+    //the parser will exit on error, so we can ignore the return value here.
     parse_all_arguments(table, argc, argv, NULL);
 
     // Default values are passed directly into the getter — no is_present check needed
@@ -67,7 +70,7 @@ int main(int argc, char **argv) {
         printf("Tags:\n");
         for (int i = 0; i < tag_count; i++)
             printf(" - %s\n", tags[i]);
-        free_multiple_strings(&tags, tag_count);
+        
     }
 
     int val_count;
@@ -76,11 +79,16 @@ int main(int argc, char **argv) {
         printf("Values:\n");
         for (int i = 0; i < val_count; i++)
             printf(" - %d\n", vals[i]);
-        free_multiple_ints(&vals);
+        
     }
 
     printf("Host: %s  Port: %d  Verbose: %d  Timeout: %.2f\n", host, port, verbose, timeout);
-    free_argument_table(&table);
+    #ifndef LEAK_MEMORY
+        free_multiple_strings(&tags, tag_count);
+        free_single_string(&host);
+        free_multiple_ints(&vals);
+        free_argument_table(&table);
+    #endif
     return 0;
 }
 ```
@@ -498,3 +506,104 @@ The happy-path run exercises strings, integers, floats, booleans, multi-value fl
 - **No subcommands support yet.** All flags are flat; there is no `git commit`-style dispatch. But can be implemented using flags and provided APIs.
 - **`BOOLEAN | MULTIPLE` is not allowed.**
 - **No thread safety.** Update from a single thread only, or ensure all updates to table occur in a lock-held crtical section, preferably the one with `main()`.
+---
+
+## Test Output
+
+The following output is produced by running `./test.sh` against a correctly built binary. Two scenarios are shown: **without memory leaks** (all `free_*` calls active) and **with memory leaks** (`#define LEAK_MEMORY` suppresses cleanup, caught by AddressSanitizer).
+
+### Happy-path tests (`./test.sh`)
+
+Each block below corresponds to one `./test` invocation in `test.sh`, separated by `-----------------------------`.
+
+```
+# ./test -H "localhost"
+Host: localhost  Port: 8080  Verbose: 0  Timeout: 30.00
+-----------------------------
+# ./test -H "192.168.1.17" --verbose
+Host: 192.168.1.17  Port: 8080  Verbose: 1  Timeout: 30.00
+-----------------------------
+# ./test -H "localhost" -p 5000
+Host: localhost  Port: 5000  Verbose: 0  Timeout: 30.00
+-----------------------------
+# ./test -H "localhost" --timeout 2.5
+Host: localhost  Port: 8080  Verbose: 0  Timeout: 2.50
+-----------------------------
+# ./test -H "localhost" -t -- -tag1 -tag2 -tag3 -- --verbose
+Tags:
+ - -tag1
+ - -tag2
+ - -tag3
+Host: localhost  Port: 8080  Verbose: 1  Timeout: 30.00
+-----------------------------
+# ./test -H "localhost" --timeout 40.0 -t -- -tag1 -tag2 -tag3 -tag4 -tag5 -tag6
+Tags:
+ - -tag1
+ - -tag2
+ - -tag3
+ - -tag4
+ - -tag5
+ - -tag6
+Host: localhost  Port: 8080  Verbose: 0  Timeout: 40.00
+-----------------------------
+# ./test -H "localhost" -t "tag 9" "tag 11" "tag 13" --timeout -3.5 --verbose -p 6007 --val 10 20 30
+Tags:
+ - tag 9
+ - tag 11
+ - tag 13
+Values:
+ - 10
+ - 20
+ - 30
+Host: localhost  Port: 6007  Verbose: 1  Timeout: -3.50
+-----------------------------
+# ./test --help
+Usage: ./test [options]
+
+Options:
+  --host               -H      <string>    [required]              Server hostname
+  --port               -p      <int>       [optional]              Port number (default 8080)
+  --verbose            -v      <bool>      [optional]              Enable verbose output
+  --tags               -t      <string>    [optional]  [multiple]  One or more tags
+  --timeout                    <float>     [optional]              Timeout in seconds
+  --val                        <int>       [optional]  [multiple]  One or more integer values
+```
+
+No AddressSanitizer output — zero leaks when all `free_*` helpers are called correctly.
+
+---
+
+### Memory-leak run (with `LEAK_MEMORY` defined)
+
+When the `#ifndef LEAK_MEMORY` cleanup block is skipped, AddressSanitizer reports every allocation that was never freed. The functional output is identical to the happy-path run; only the leak summary differs. Example excerpt from the last invocation (the most complex one):
+
+```
+==10777==ERROR: LeakSanitizer: detected memory leaks
+
+Direct leak of 24 byte(s) in 1 object(s) allocated from:
+    #1 0x... in init_argument_parser argument_parser.h:337
+
+Direct leak of 24 byte(s) in 1 object(s) allocated from:
+    #1 0x... in arg_get_multiple_string argument_parser.h:745
+
+Direct leak of 12 byte(s) in 1 object(s) allocated from:
+    #1 0x... in arg_get_multiple_int argument_parser.h:689
+
+Direct leak of 10 byte(s) in 1 object(s) allocated from:
+    #1 0x... in arg_get_string argument_parser.h:623
+
+... (indirect leaks from add_argument, parse_all_arguments, realloc) ...
+
+SUMMARY: AddressSanitizer: 765 byte(s) leaked in 44 allocation(s).
+```
+
+The table below maps each leak site to the responsible `free_*` call that eliminates it:
+
+| Leak origin | Freed by |
+|---|---|
+| `init_argument_parser` | `free_argument_table(&table)` |
+| `arg_get_string` | `free_single_string(&host)` |
+| `arg_get_multiple_string` | `free_multiple_strings(&tags, tag_count)` |
+| `arg_get_multiple_int` | `free_multiple_ints(&vals)` |
+| `add_argument` (indirect) | `free_argument_table(&table)` |
+| `parse_all_arguments` (indirect) | `free_argument_table(&table)` |
