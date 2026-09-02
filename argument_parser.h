@@ -24,7 +24,8 @@
     * - ARGUMENT_TYPE_REQUIRED: Modifier indicating that the argument is required.
     * - ARGUMENT_TYPE_MULTIPLE: Modifier indicating that the argument can accept multiple values.
     * DESCRIPTION:
-    * This enumeration defines the various types and modifiers that can be associated with command-line arguments in
+    * This enumeration defines the various types and modifiers that can 
+    * be associated with command-line arguments in
     * the argument parser.
 */
 typedef enum ARGUMENT_TYPE{
@@ -47,10 +48,15 @@ typedef enum ARGUMENT_PARSER_ERROR{
 
 /*
     * STRUCTURES:
-    * - ARGUMENT_OPTIONS: Represents the details of a single command-line argument, including its name, type, value, and help text.
-    * - ARGUMENT_TABLE: Represents the collection of all defined arguments, along with counts of total, user-provided, and required arguments.
+    * - ARGUMENT_OPTIONS: Represents the details of a single command-line argument, 
+    * including its name, type, value, and help text.
+    * - ARGUMENT_TABLE: Represents the collection of all defined arguments, 
+    * along with counts of total, user-provided, and required arguments.
     * DESCRIPTION:
-    * These structures are used to store information about the defined command-line arguments and their values after parsing. The ARGUMENT_OPTIONS structure holds details for each individual argument, while the ARGUMENT_TABLE structure manages the overall collection of arguments.
+    * These structures are used to store information about the defined 
+    * command-line arguments and their values after parsing. 
+    * The ARGUMENT_OPTIONS structure holds details for each individual argument, 
+    * while the ARGUMENT_TABLE structure manages the overall collection of arguments.
 */
 typedef struct ARGUMENT_OPTIONS{
     char * argument_name_long;
@@ -79,7 +85,8 @@ typedef struct ARGUMENT_TABLE{
     * Output: None (the function will terminate the program)
     * Description:
     * This function is used to handle critical errors in the argument parser. It takes a formatted
-    * error message and additional arguments, prints the error message to stderr, and then terminates the program with a failure status.
+    * error message and additional arguments, 
+    * prints the error message to stderr, and then terminates the program with a failure status.
 */
 void argument_parser_panic(const char * message, ...);
 
@@ -89,7 +96,8 @@ void argument_parser_panic(const char * message, ...);
     * Output: None (the function will terminate the program)
     * Description:
     * This function is used to raise errors in the argument passed by the user. It takes a formatted
-    * error message and additional arguments, prints the error message to stderr, and then terminates the program with a failure status.
+    * error message and additional arguments, 
+    * prints the error message to stderr, and then terminates the program with a failure status.
 */
 void argument_parser_error(const char *fmt, ...);
 
@@ -103,7 +111,8 @@ void argument_parser_error(const char *fmt, ...);
 arg_table * init_argument_parser();
 
 /*
-    * Input: Pointer to the argument table, long name of the argument, short name of the argument, type of the argument, and help text for the argument
+    * Input: Pointer to the argument table, long name of the argument, 
+    * short name of the argument, type of the argument, and help text for the argument
     * Output: Pointer to the updated argument table
     * Description:
     * Adds a new argument to the argument table with the specified long name, short name, type, and help text.
@@ -116,7 +125,8 @@ arg_table * add_argument(arg_table * table, const char * long_name, const char *
     * Output: None (the function will print the help message and terminate the program)
     * Description:
     * Prints a help message that includes usage instructions and details about each argument defined in the argument table.
-    * The function iterates through all arguments in the table and displays their long name, short name, type, modifiers (required/multiple), and help text.
+    * The function iterates through all arguments in the table and displays their long name, 
+    * short name, type, modifiers (required/multiple), and help text.
 */
 void print_help(arg_table * table, const char * program_name);
 
@@ -134,14 +144,17 @@ arg_table * parse_all_arguments(arg_table * table, int argc, char ** argv, enum 
     * Input: Pointer to the argument table and the name of the argument to retrieve
     * Output: Pointer to the argument option structure corresponding to the specified name
     * Description:
-    * Retrieves the argument option structure from the argument table based on the provided name (either long or short). If the argument is not found, it raises an error.
+    * Retrieves the argument option structure from the argument table based on the 
+    * provided name (either long or short). If the argument is not found, it raises an error.
 */
 arg_opt * arg_get(arg_table * table, const char * name);
 /*
     * Input: Pointer to the argument table and the name of the argument to retrieve
     * Output: The string value of the specified argument
     * Description:
-    * Retrieves the value of a string argument from the argument table. It checks if the argument exists, is of the correct type, and has a value before returning it. If any of these conditions are not met, it raises an error.
+    * Retrieves the value of a string argument from the argument table. 
+    * It checks if the argument exists, is of the correct type, and has a value 
+    * before returning it. If any of these conditions are not met, it raises an error.
     * Note: Useful for retrieving string arguments directly with metadata.
     */
 char * arg_get_string(arg_table * table, const char * name, const char * default_value);
@@ -149,8 +162,9 @@ char * arg_get_string(arg_table * table, const char * name, const char * default
     * Input: Pointer to the argument table and the name of the argument to retrieve
     * Output: The integer value of the specified argument
     * Description:
-    * Retrieves the value of an integer argument from the argument table. It checks if the argument exists, is of the correct type, and has a value before returning it. If any of these
-    * conditions are not met, it raises an error.
+    * Retrieves the value of an integer argument from the argument table. 
+    * It checks if the argument exists, is of the correct type, and has a value before 
+    * returning it. If any of these conditions are not met, it raises an error.
 */
 int arg_get_int(arg_table * table, const char * name, int default_value);
 /*
@@ -158,7 +172,8 @@ int arg_get_int(arg_table * table, const char * name, int default_value);
     * Output: The float value of the specified argument
     * Description:
     * Retrieves the value of a float argument from the argument table. It checks if the argument
-    * exists, is of the correct type, and has a value before returning it. If any of these conditions are not met, it raises an error.
+    * exists, is of the correct type, and has a value before returning it. 
+    * If any of these conditions are not met, it raises an error.
 */
 float arg_get_float(arg_table * table, const char * name, float default_value);
 /*
@@ -167,15 +182,20 @@ float arg_get_float(arg_table * table, const char * name, float default_value);
     *  false)
     * Description:
     * Retrieves the value of a boolean argument from the argument table. It checks if the argument
-    * exists and is of the correct type. If the argument is not present, it returns 0 (false). If the argument is present, it returns its value (1 for true).
+    * exists and is of the correct type. 
+    * If the argument is not present, it returns 0 (false). 
+    * If the argument is present, it returns its value (1 for true).
 */
 int arg_get_bool(arg_table * table, const char * name);
 /*
-    * Input: Pointer to the argument table, the name of the argument to retrieve, and a pointer to an integer to store the count of values
+    * Input: Pointer to the argument table, the name of the argument to retrieve, 
+    * and a pointer to an integer to store the count of values
     * Output: An array of integers corresponding to the values of the specified multiple integer argument
     * Description:
     * Retrieves the values of a multiple integer argument from the argument table. It checks if the
-    * argument exists, is of the correct type, and has values before returning them. The function also fills the provided integer pointer with the count of values. If any of these conditions are not met, it raises an error.
+    * argument exists, is of the correct type, and has values before returning them. 
+    * The function also fills the provided integer pointer with the count of values. 
+    * If any of these conditions are not met, it raises an error.
 */
 int * arg_get_multiple_int(arg_table * table, const char * name, int * out_count, int * default_values);
 /*
@@ -183,15 +203,19 @@ int * arg_get_multiple_int(arg_table * table, const char * name, int * out_count
     * Output: An array of floats corresponding to the values of the specified multiple float argument
     * Description:
     * Retrieves the values of a multiple float argument from the argument table. It checks if the
-    * argument exists, is of the correct type, and has values before returning them. The function also fills the provided integer pointer with the count of values. If any of these conditions are not met, it raises an error.
+    * argument exists, is of the correct type, and has values before returning them. 
+    * The function also fills the provided integer pointer with the count of values. 
+    * If any of these conditions are not met, it raises an error.
 */
 float * arg_get_multiple_float(arg_table * table, const char * name, int * out_count, float * default_values);
 /*
     * Input: Pointer to the argument table, the name of the argument to retrieve, and a pointer to an integer to store the count of values
     * Output: An array of strings corresponding to the values of the specified multiple string argument
     * Description:
-    * Retrieves the values of a multiple string argument from the argument table. It checks if the argument exists, is of the correct type, and has values before returning them. The function also fills
-    * the provided integer pointer with the count of values. If any of these conditions are not met, it raises an error.
+    * Retrieves the values of a multiple string argument from the argument table. 
+    * It checks if the argument exists, is of the correct type, and has values before returning them.
+    *  The function also fills the provided integer pointer with the count of values. 
+    * If any of these conditions are not met, it raises an error.
 */
 char ** arg_get_multiple_string(arg_table * table, const char * name, int * out_count, char ** default_values);
 
@@ -199,14 +223,19 @@ char ** arg_get_multiple_string(arg_table * table, const char * name, int * out_
     * Input: A string value to convert and a pointer to an integer to store the result
     * Output: None (the function will store the converted integer in the provided pointer)
     * Description:
-    * Converts a string value to an integer. The function checks for valid integer format, handles overflow and underflow, and raises errors for invalid input. If the conversion is successful, it stores the result in the provided integer pointer.
+    * Converts a string value to an integer. The function checks for valid integer format, 
+    * handles overflow and underflow, and raises errors for invalid input. 
+    * If the conversion is successful, it stores the result in the provided integer pointer.
 */
 void cast_to_int(const char * val, int * out);
 /*
     * Input: A string value to convert and a pointer to a double to store the result
     * Output: None (the function will store the converted float in the provided pointer)
     * Description:
-    * Converts a string value to a float (double). The function checks for valid float format, handles overflow and underflow, and raises errors for invalid input. If the conversion is successful, it stores the result in the provided double pointer.
+    * Converts a string value to a float (double). 
+    * The function checks for valid float format, handles overflow and underflow, 
+    * and raises errors for invalid input. If the conversion is successful, 
+    * it stores the result in the provided double pointer.
 */
 void cast_to_float(const char * val, float * out);
 
@@ -215,7 +244,9 @@ void cast_to_float(const char * val, float * out);
     * Input: Pointer to the argument table
     * Output: None (the function will free all allocated memory for the argument table)
     * Description:
-    * Frees all memory allocated for the argument table, including the argument options and their values. This function should be called when the argument table is no longer needed to prevent memory leaks.
+    * Frees all memory allocated for the argument table, including the argument options
+    * and their values. This function should be called when the argument table is no 
+    * longer needed to prevent memory leaks.
 */
 void free_argument_table(arg_table ** table);
 
@@ -224,31 +255,41 @@ void free_argument_table(arg_table ** table);
     * Input: An array of strings and the count of strings in the array
     * Output: None (the function will free all allocated memory for the array of strings)
     * Description:
-    * Frees all memory allocated for an array of strings, including each individual string and the array itself. This function should be called when the array of strings is no longer needed to prevent memory leaks.
+    * Frees all memory allocated for an array of strings, 
+    * including each individual string and the array itself. 
+    * This function should be called when the array of strings is no longer needed 
+    * to prevent memory leaks.
 */
 void free_multiple_strings(char *** strings, int count);
 /*
-    * CAUTION: This function will free all memory allocated for an array of integers. Use it when the array of integers is no longer needed to prevent memory leaks.
+    * CAUTION: This function will free all memory allocated for an array of integers. 
+    * Use it when the array of integers is no longer needed to prevent memory leaks.
     * Input: An array of integers
     * Output: None (the function will free all allocated memory for the array of integers)
     * Description:
-    * Frees all memory allocated for an array of integers. This function should be called when the array of integers is no longer needed to prevent memory leaks.
+    * Frees all memory allocated for an array of integers. 
+    * This function should be called when the array of integers is no longer needed to prevent memory leaks.
 */
 void free_multiple_ints(int ** ints);
 /*
-    * CAUTION: This function will free all memory allocated for an array of floats. Use it when the array of floats is no longer needed to prevent memory leaks.
+    * CAUTION: This function will free all memory allocated for an array of floats. 
+    * Use it when the array of floats is no longer needed to prevent memory leaks.
     * Input: An array of floats
     * Output: None (the function will free all allocated memory for the array of floats)
     * Description:
-    * Frees all memory allocated for an array of floats. This function should be called when the array of floats is no longer needed to prevent memory leaks.
+    * Frees all memory allocated for an array of floats. 
+    * This function should be called when the array of floats is no longer needed to 
+    * prevent memory leaks.
 */
 void free_multiple_floats(float ** floats);
 /*
-    * CAUTION: This function will free the memory allocated for a single string. Use it when the string is no longer needed to prevent memory leaks.
+    * CAUTION: This function will free the memory allocated for a single string. 
+    * Use it when the string is no longer needed to prevent memory leaks.
     * Input: A pointer to a string
     * Output: None (the function will free the allocated memory for the string)
     * Description:
-    * Frees the memory allocated for a single string. This function should be called when the string is no longer needed to prevent memory leaks.
+    * Frees the memory allocated for a single string.
+    * This function should be called when the string is no longer needed to prevent memory leaks.
 */
 void free_single_string(char ** str);
 #endif
