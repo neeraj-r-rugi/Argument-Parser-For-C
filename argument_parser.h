@@ -6,7 +6,10 @@
     Copyright: (c) 2026 Neeraj R Rugi. All rights reserved.
 
 */
-
+/*
+    * A simple argument parser for C that supports string, integer, float, and boolean arguments, as well as required and multiple arguments.
+    * It provides a simple API for defining arguments, parsing command-line input, and retrieving argument values.
+*/
 /*
  * Process to use:
     * 1. Include this header file in your C source file.
@@ -19,13 +22,11 @@
     * 7. Handle errors and display help messages as needed using argument_parser_error() and print_help() wherever nessary.
     * 
 */
+
+
 #ifndef ARGUMENT_PARSER
 #define ARGUMENT_PARSER
 
-/*
-    * A simple argument parser for C that supports string, integer, float, and boolean arguments, as well as required and multiple arguments.
-    * It provides a simple API for defining arguments, parsing command-line input, and retrieving argument values.
-*/
 /*
     * TYPE: Enumeration (enum)
     * FIELDS:
