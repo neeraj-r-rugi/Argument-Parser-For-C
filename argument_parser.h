@@ -7,6 +7,18 @@
 
 */
 
+/*
+ * Process to use:
+    * 1. Include this header file in your C source file.
+        * Add the Define LOAD_ARGUMENT_PARSER before including this header file in one of your C source files to include the implementation.
+    * 2. Initialize the argument parser by calling init_argument_parser().
+    * 3. Add arguments using add_argument() with the desired long name, short name, type, and help text.
+    * 4. Parse the command-line arguments by calling parse_all_arguments() with argc and argv.
+    * 5. Retrieve argument values using arg_get_string(), arg_get_int(), arg_get_float(), arg_get_bool(), or the multiple value retrieval functions as needed.
+    * 6. Free the argument table and any allocated memory for multiple values using free_argument_table() and the appropriate free functions.
+    * 7. Handle errors and display help messages as needed using argument_parser_error() and print_help() wherever nessary.
+    * 
+*/
 #ifndef ARGUMENT_PARSER
 #define ARGUMENT_PARSER
 
